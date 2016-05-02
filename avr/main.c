@@ -39,7 +39,7 @@ void initialize(void)
    packetReceiver_init(unit_address, &timer[0]);
 
    for (i = 0; i < NUM_RELAYS; i++)
-     timer[i] = 0;
+     timer[i] = RELAY_TIMEOUT;
 }
 
 
@@ -93,6 +93,7 @@ void service_timers(void)
     /* Turn off relay if timer has reached 0 */
     if (timer[i] <= 0) {
        set_relay(i, 0);
+//       timer[i] = RELAY_TIMEOUT;
     /* Otherwise, count down */
     } else { 
        timer[i]--;
@@ -122,6 +123,10 @@ int main(void)
      }
 
      service_timers();
+     if (have_error()) {
+        print_errors();
+        clear_errors();
+     }
    }
 
    return 0;

@@ -79,7 +79,7 @@ void set_onboardled(int value)
 
 void set_relay(int relaynum, int value) 
 {
-   if (relaynum > NUM_RELAYS) 
+   if (relaynum >= NUM_RELAYS || relaynum < 0) 
       return;
 
    

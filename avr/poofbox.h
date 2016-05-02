@@ -18,7 +18,8 @@
 /* This about 24000 per second:  it's in units of "loop iterations"  
     NB - this is only true if you're using the 1MHz internal clock. If you're
     using the crystal, your timing will be very different*/
-#define   RELAY_TIMEOUT   12000;
+//#define   RELAY_TIMEOUT   (7*12000)UL  // XXX - I'm getting an integer overflow when I multiply be 7 - are we really 16 bits here?
+#define   RELAY_TIMEOUT   84000UL  // XXX - I'm getting an integer overflow when I multiply be 7 - are we really 16 bits here?
 
 /* 8 relays on the current board. That's about as many as we can get 
    an AVR to support */
