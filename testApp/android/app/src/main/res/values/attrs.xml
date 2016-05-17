@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SingleColorView">
+        <attr name="default_cell_color" format="color" />
+    </declare-styleable>
+</resources>
