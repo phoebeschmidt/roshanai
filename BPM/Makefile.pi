@@ -1,0 +1,25 @@
+#
+# Makefile for raspberry pi (or whatever box hosts the vernier polar heart rate sensor)
+#
+# make -f Makefile.pi
+#
+# This was built using the GoIO API (GoIO-2.53.0.tar.gz) from Vernier. Install this first!
+# Then modify your LIB line and INC line below to suit.
+#
+
+LIB=-L/usr/lib -l GoIO
+INC=-I. -I/usr/include/GoIO
+CC=g++
+
+PulsePolarBPM: PulsePolarBPM.o BPMannounce.o
+	$(CC) -o PulsePolarBPM PulsePolarBPM.o BPMannounce.o $(LIB)
+
+PulsePolarBPM.o: PulsePolarBPM.cpp
+	$(CC) $(INC) -c  PulsePolarBPM.cpp
+
+BPMannounce.o: BPMannounce.c
+	$(CC) $(INC) -c  BPMannounce.c
+
+clean:
+	rm -f *.o PulsePolarBPM
+

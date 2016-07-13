@@ -26,6 +26,7 @@ main(int ac, char* av[]) {
 	struct sockaddr_in si_serve;
 	int s,verbose;
 	socklen_t slen; // may be an int on some platforms.
+	int readbytes; 
 	BPMPulseData_t data;	
 
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
@@ -52,17 +53,22 @@ main(int ac, char* av[]) {
 		Fatal("bind");
 
 	slen=sizeof(si_serve);
-	while(recvfrom(s, (char*)&data, sizeof(data), 0, (struct sockaddr*)&si_serve, &slen)!=-1) {
-		slen=sizeof(si_serve);
+	
+	while((readbytes=recvfrom(s, (char*)&data, sizeof(data), 0, (struct sockaddr*)&si_serve, &slen))!=-1) {
 
-		printf("BPM %u.%u/sec, detector local clock %u\n",
-			data.bpm_tenths_sec/10, data.bpm_tenths_sec %10,
-			data.detector_time);
+		if (data.beat_interval_ms == 0) data.beat_interval_ms = 1; // avoid divide by zero
 
-		if (verbose) printf("Received %u bytes from %s:%d\n",
-			slen,
+		printf("Interval %hu ms (%u bpm), delay %u ms\n",
+			data.beat_interval_ms,
+			60*1000/data.beat_interval_ms,
+			data.elapsed_ms);
+
+		if (verbose) printf("Received %d bytes (wanted %lu) from %s:%d\n",
+			readbytes, sizeof(data),
 			inet_ntoa(si_serve.sin_addr),
 			ntohs(si_serve.sin_port));
+
+		slen=sizeof(si_serve);
 	}
 
 	close(s);
