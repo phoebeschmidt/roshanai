@@ -2,7 +2,7 @@
 
 What we've got here:
 
-BPM - Code to detect heartbeats and put the pulses out on the network
+BPM - Code to detect heartbeats and put the pulses out on the network<br>
 avr - Code that runs on the 8-output relay driver boards (see eagle files in flg-svn)
 avr-proportional - code that runs on the proportional valve driver board (no eagle files ... yet)
 test-proportional - Android code for running the proportional valve driver board. Can run on any android device, requires standard FTDI USB to 485 cable to connect with board
