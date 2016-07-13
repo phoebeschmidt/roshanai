@@ -1,6 +1,7 @@
 # Pulse Project
 
 What we've got here:
+
 BPM - Code to detect heartbeats and put the pulses out on the network
 avr - Code that runs on the 8-output relay driver boards (see eagle files in flg-svn)
 avr-proportional - code that runs on the proportional valve driver board (no eagle files ... yet)
