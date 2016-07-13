@@ -6,13 +6,25 @@ import java.util.ArrayList;
  * Created by carolyn on 5/9/16.
  */
 public class SignalRequest {
-    boolean  stop;   // NB, if 'stop' is set, none of the other members are valid
-    String   controllerId;
-    int      timeslice;
-    boolean  repeat;
+    boolean     stop;   // NB, if 'stop' is set, none of the other members are valid
+    int         controllerId; // must be between 0 and 255
+    int         timeslice;
+    boolean     repeat;
+    SignalEvent event;
+    String      debugTxt;
     ArrayList<ArrayList<Boolean>> signalArray;
 
-    SignalRequest(boolean stop, String controllerId, int timeslice, boolean repeat) {
+    enum SignalEvent {
+        USB_ATTACH,
+        USB_DETACH,
+        DEBUG
+    };
+
+    public SignalRequest() {
+
+    }
+
+    public SignalRequest(boolean stop, int controllerId, int timeslice, boolean repeat) {
         this.stop = stop;
         this.controllerId = controllerId; // XXX check for valid values... somewhere. Could make this a number...
         this.timeslice = timeslice;
@@ -24,13 +36,11 @@ public class SignalRequest {
         return stop;
     }
 
-    public String getControllerId() {
+    public int getControllerId() {
         return controllerId;
     }
 
-    public int getTimeslice() {
-        return timeslice;
-    }
+    public int getTimeslice() { return timeslice; }
 
     public boolean getRepeat() {
         return repeat;
@@ -42,5 +52,22 @@ public class SignalRequest {
 
     public void addSignals(ArrayList<Boolean> signals) {
         signalArray.add(signals);
+    }
+
+    public SignalEvent getEvent() {
+        return event;
+    }
+
+    public void setEvent(SignalEvent event) {
+        this.event = event;
+    }
+
+    public String getDebugTxt() {
+        return debugTxt;
+    }
+
+    public void setDebugTxt(String text)
+    {
+        this.debugTxt = text;
     }
  }

@@ -1,13 +1,24 @@
 package com.medeagames.myapplication;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
+import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewGroup;
@@ -15,10 +26,19 @@ import android.view.ViewParent;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import org.json.*;
+import org.w3c.dom.Text;
 
 public class MainActivity extends AppCompatActivity {
     // references to view objects
@@ -28,18 +48,33 @@ public class MainActivity extends AppCompatActivity {
 
     public static final int MAX_CHANNELS = 8;
 
-    // internal backing
-    /* or not...
-    private boolean mRepeat    = false;
-    */
-    private int mTimesliceMs   = 1000; // XXX get from value in resources for default timeslicetext
+    private int mTimesliceMs   = 500; // XXX get from value in resources for default timeslicetext
     private int mControllerId  = 0;    // NB - not currently controllable...
     private boolean mIsRunning = false; // XXX add some sort of UI that says that this is running
-    private int mNumChannels   = 2;    // make this selectable
+    private int mNumChannels   = 3;    // XXX make this selectable
+    private UsbBroadcastReceiver usbReceiver = null;
+    private File mDebugDir     = null;
+
 
     // service to talk to the serial cable
     static private SerialService serialInterface = null;
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        /*
+        unregisterReceiver(usbReceiver);
+        */
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        /*
+        Intent attachIntent = this.registerReceiver(usbReceiver, new IntentFilter("android.hardware.usb.action.USB_DEVICE_ATTACHED"));
+        Intent detachIntent = this.registerReceiver(usbReceiver, new IntentFilter("android.hardware.usb.action.USB_DEVICE_DETACHED"));
+        */
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,49 +82,66 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        Log.i("FLG_POOFER", "Poofer start");
+        setupDebugDirs();
 
-        // XXX - not sure what this is or what I want it to do
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+        usbReceiver = new UsbBroadcastReceiver();
+
+        writeToFile("Creating");
 
         if (serialInterface == null ){
-            serialInterface = new SerialService(this.getApplicationContext());
+            serialInterface = SerialService.getSerialService(this.getApplicationContext());
         }
+
         mTimesliceTextWidget  = (EditText)findViewById(R.id.speed_ms);
         mRepeatCheckboxWidget = (CheckBox)findViewById(R.id.repeatCheckbox);
         mPatternGridWidget    = (LinearLayout)findViewById(R.id.patternGrid);
 
-        /*
-        mTimesliceTextWidget.addTextChangedListener(new TextWatcher(){
-            public void afterTextChanged(Editable s) {
+        mTimesliceTextWidget.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    Log.e("FLG_POOFER", "After text changed");
+                    int newTimeslice = -1;
+                    String newTimesliceStr = view.getText().toString();
 
-                // check - is the text an integer? If not, revert to previous text
-                String newText = s.toString();
-                try {
-                    Integer intText = Integer.parseInt(newText);
-                    if (intText != null) {
-                        mTimesliceMs = intText.intValue();
-                    } else {
-                        s.clear();
-                        s.append(String.valueOf(mTimesliceMs));
+                    // check old vs new values to avoid infinite recursion.
+                    if (!String.valueOf(mTimesliceMs).equals(newTimesliceStr)) {
+                        try {
+                            newTimeslice = Integer.parseInt(newTimesliceStr);
+                        } catch (NumberFormatException e) {
+                            Log.e("FLG_POOFER", "Invalid value in timeslice");
+                        }
+
+                        if (newTimeslice < 10 || newTimeslice > 20000) {
+                            Log.e("FLG_POOFER", "Timeslice number out of bounds");
+                        } else {
+                            mTimesliceMs = newTimeslice;
+                        }
+
+                        mTimesliceTextWidget.setText(Integer.toString(mTimesliceMs));
                     }
-                } catch (NumberFormatException e) {
-                    s.clear();
-                    s.append(String.valueOf(mTimesliceMs));
-                }
-            }
-            public void beforeTextChanged(CharSequence s, int start, int count, int after){}
-            public void onTextChanged(CharSequence s, int start, int before, int count){}
-        });
-        */
 
-        updateViewFromBundle(savedInstanceState);
+                    // set focus to parent rather than this text entry - should prevent keyboard
+                    // from popping up if the screen is rotated
+                    ((View)view.getParent()).requestFocus();
+
+                }
+                return false;
+            }
+        });
+
+        if (savedInstanceState != null) {
+            updateViewFromBundle(savedInstanceState);
+        } else {
+            SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+            updateViewFromPreferences(prefs);
+        }
+
+
+        if (!(Thread.getDefaultUncaughtExceptionHandler() instanceof CustomExceptionHandler)) {
+            Thread.setDefaultUncaughtExceptionHandler(new CustomExceptionHandler(
+                    mDebugDir + "flg_main"));
+        }
     }
 
     @Override
@@ -117,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
     // Send pattern to serial interface
     public void startPattern(View view){
         boolean repeat = mRepeatCheckboxWidget.isChecked();
-        SignalRequest request = new SignalRequest(false, "00", mTimesliceMs, repeat);
+        SignalRequest request = new SignalRequest(false, mControllerId, mTimesliceMs, repeat);
 
         // go through all the rows, adding the signals
         for (int i = 0; i< mPatternGridWidget.getChildCount(); i++) {
@@ -126,8 +178,8 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<Boolean> signals = new ArrayList<>();
                 LinearLayout patternRow = (LinearLayout)((TimesliceRow)child1).getChildAt(0);  // XXX this will not be necessary when I fix the inflate
                 // now iterate through these children, looking for SingleColorViews
-                int maxRows = Math.max(patternRow.getChildCount(), mNumChannels);
-                for (int j=0; j<maxRows; j++ ){
+                int maxColumns = Math.min(patternRow.getChildCount(), mNumChannels);
+                for (int j=0; j<maxColumns; j++ ){
                     View child2 = patternRow.getChildAt(j);
                     Class classChild2 = child2.getClass();
                     if (classChild2 == SingleColorView.class) {
@@ -138,12 +190,13 @@ public class MainActivity extends AppCompatActivity {
                 request.addSignals(signals);
             }
         }
+        savePreferences(); // ideally I should do this every time data changes XXX
         serialInterface.sendSignalRequest(request);
     }
 
     public void stopPattern(View view) {
         boolean repeat = mRepeatCheckboxWidget.isChecked();
-        SignalRequest request = new SignalRequest(true, "00", mTimesliceMs, repeat);
+        SignalRequest request = new SignalRequest(true, 0, mTimesliceMs, repeat);
         serialInterface.sendSignalRequest(request);
     }
 
@@ -221,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
         savedInstanceState.putBoolean("RepeatValue", mRepeatCheckboxWidget.isChecked());
         savedInstanceState.putInt("ControllerId", mControllerId);
         savedInstanceState.putInt("NumberChannels", mNumChannels);
-        savedInstanceState.putInt("Timeslice_ms", mTimesliceMs);
+        savedInstanceState.putInt("TimesliceMs", mTimesliceMs);
 
         // now the pattern data
         ArrayList<ArrayList<Boolean>> patternData = getPatternData();
@@ -233,6 +286,7 @@ public class MainActivity extends AppCompatActivity {
             }
             patternDataJson.put(timesliceJson);
         }
+        Log.e("FLG_POOFER", "PatternData stored is " + patternDataJson.toString());
 
         savedInstanceState.putString("PatternData", patternDataJson.toString());
     }
@@ -243,11 +297,54 @@ public class MainActivity extends AppCompatActivity {
         updateViewFromBundle(savedInstanceState);
     }
 
+    private void savePreferences()
+    {
+        SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+        if (prefs == null) {
+            return;
+        }
+
+        SharedPreferences.Editor editor = prefs.edit();
+
+        // easy values first...
+        editor.putBoolean("RepeatValue", mRepeatCheckboxWidget.isChecked());
+        editor.putInt("ControllerId", mControllerId);
+        editor.putInt("NumberChannels", mNumChannels);
+        editor.putInt("TimesliceMs", mTimesliceMs);
+
+        // now the pattern data
+        ArrayList<ArrayList<Boolean>> patternData = getPatternData();
+        JSONArray patternDataJson = new JSONArray();
+        for (ArrayList<Boolean> timeslice : patternData) {
+            JSONArray timesliceJson = new JSONArray();
+            for (Boolean onOff : timeslice) {
+                timesliceJson.put(onOff);
+            }
+            patternDataJson.put(timesliceJson);
+        }
+        Log.e("FLG_POOFER", "PatternData stored is " + patternDataJson.toString());
+
+        editor.putString("PatternData", patternDataJson.toString());
+        editor.commit();
+
+    }
+
+    private void updateViewFromPreferences(SharedPreferences prefs){
+        if (prefs != null) {
+            boolean repeat = prefs.getBoolean("RepeatValue", false);
+            mControllerId = prefs.getInt("ControllerId", 0);
+            mNumChannels = prefs.getInt("NumberChannels", 4);
+            mTimesliceMs = prefs.getInt("TimesliceMs", mTimesliceMs);
+            String patternDataString = prefs.getString("PatternData", null);
+
+            restoreState(repeat, patternDataString);
+        }
+    }
+
     private void updateViewFromBundle(Bundle savedInstanceState) {
 
-        ArrayList<ArrayList<Boolean>> patternData = null;
-
         boolean repeat = false;
+        String patternDataString = null;
 
         if (savedInstanceState != null) {
             repeat = savedInstanceState.getBoolean("RepeatValue", repeat);
@@ -255,9 +352,20 @@ public class MainActivity extends AppCompatActivity {
             mNumChannels = savedInstanceState.getInt("NumberChannels", 4);  // XXX create static default
             mTimesliceMs = savedInstanceState.getInt("TimesliceMs", mTimesliceMs);
 
-            String patternDataString = savedInstanceState.getString("PatternData", null);
-            patternData = new ArrayList<>();
+            patternDataString = savedInstanceState.getString("PatternData", null);
+            Log.e("FLG_POOFER", "PatternData retrieved is " + patternDataString);
+            Log.e("FLG_POOFER", "num channels retrieved is " + mNumChannels);
+         }
 
+        restoreState(repeat, patternDataString);
+    }
+
+    private void restoreState(boolean repeat, String patternDataString)
+    {
+        ArrayList<ArrayList<Boolean>> patternData = null;
+
+        if (patternDataString != null) {
+            patternData = new ArrayList<ArrayList<Boolean>>();
             try {
                 JSONArray timeslices = new JSONArray(patternDataString);
                 for (int i = 0; i < timeslices.length(); i++) {
@@ -303,6 +411,47 @@ public class MainActivity extends AppCompatActivity {
                 TimesliceRow row = new TimesliceRow(this, mNumChannels, !first);
                 row.setPattern(timeslice);
                 mPatternGridWidget.addView(row);
+            }
+        }
+    }
+
+    private void setupDebugDirs()
+    {
+        File appStorage = new File("/mnt/extsd/");
+        if (appStorage == null || ! appStorage.exists()) {
+            appStorage = this.getApplicationContext().getExternalFilesDir(null);
+        }
+        if (appStorage != null) {
+            mDebugDir = new File(appStorage.getAbsolutePath() + "/flg");
+            if (!mDebugDir.exists()) {
+                boolean created = mDebugDir.mkdir();
+                if (!created) {
+                    Toast.makeText(this.getApplicationContext(), "Could not create debug dir", Toast.LENGTH_LONG).show();
+                    mDebugDir = null;
+                } else {
+                    //Toast.makeText(this.getApplicationContext(), "Created debug dir", Toast.LENGTH_LONG).show();
+                }
+            } else if (!mDebugDir.canWrite()) {
+                Toast.makeText(this.getApplicationContext(), "Cannot write to debug dir", Toast.LENGTH_LONG).show();
+                mDebugDir = null;
+            } else {
+                //Toast.makeText(this.getApplicationContext(), "Debug dir exists, is writeable", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+
+    private void writeToFile(String bitsToWrite) {
+        if (mDebugDir != null) {
+            try {
+                File file = new File(mDebugDir, "dbg");
+                BufferedWriter bos = new BufferedWriter(new FileWriter(file));
+                bos.write(bitsToWrite);
+                bos.flush();
+                bos.close();
+            } catch (Exception e) {
+                Log.e("FLG_POOFER", "Could not write to file");
+                e.printStackTrace();
             }
         }
     }
