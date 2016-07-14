@@ -23,8 +23,16 @@ Fatal(const char* msg) {
 	exit(1);
 }
 
+void
+print_data(BPMPulseData_t* data) {
+ printf("rolling_sequence %hhu\n",data->rolling_sequence);
+ printf("beat_interval_ms %hu\n", data->beat_interval_ms);
+ printf("elapsed_ms       %u\n",  data->elapsed_ms);
+ printf("est_BPM          %f\n",  data->est_BPM);
+}
+
 static void
-TestServer(int s, struct sockaddr_in* si) {
+TestServer(int s, struct sockaddr_in* si, uint8_t pod_id) {
 
 	int i;
 	BPMPulseData_t data;
@@ -34,14 +42,17 @@ TestServer(int s, struct sockaddr_in* si) {
 
 	srand(time(NULL));
 
+	data.pod_id = pod_id;
+	data.rolling_sequence = 0;
+
 	for (i  = 0; i < 100; i++) {
 
+		data.rolling_sequence++;
+ 		data.beat_interval_ms = rand()*scale + offset;
+ 		data.elapsed_ms = 0; // no delay in test server.
+ 		data.est_BPM = 60.*1000./(float)data.beat_interval_ms;
 
-		// generate and send some test data ...
-		data.bpm_tenths_sec = (((float)rand())*scale - offset);
-		data.detector_time = time(NULL); // just a fill-in.
-
-		printf("sending BPM tenths sec %u\n", data.bpm_tenths_sec);
+		print_data(&data);
 
 		sendto(s, (char*)&data, sizeof(data), 0, (struct sockaddr*)si, sizeof(struct sockaddr_in));
 
@@ -57,9 +68,11 @@ int main(int ac, char* av[]) {
 	int errors = 0;
 	BPMPulseData_t data;
 	int verbose = 0;
+	uint8_t pod_id = 1;
 
 	if (ac > 1) srv_ip = av[1];
 	if (ac > 2) port = atoi(av[2]);
+	if (ac > 3) pod_id = atoi(av[3]);
 
 	struct sockaddr_in si_toserver;
 	int s, i;
@@ -76,7 +89,7 @@ int main(int ac, char* av[]) {
 	if (inet_aton(srv_ip, &si_toserver.sin_addr)==0)
 		Fatal("inet_aton() failed\n");
 
-	TestServer(s, &si_toserver);
+	TestServer(s, &si_toserver, pod_id);
 
 	close(s);
 	return 0;

@@ -39,16 +39,19 @@ SetupAnnounce_udp(char* ip, short port, int* sock, struct sockaddr_in* si_toserv
 
 //
 // pass in the beat period in milliseconds, also the elapsed time
-// in milliseconds from to most recent heart beat to now.
+// in milliseconds from the most recent heart beat to now.
 //
 void
-AnnounceBPMdata_udp(double interval_ms, double elapsed_ms, int sock, struct sockaddr_in* si) {
+AnnounceBPMdata_udp(double interval_ms, double elapsed_ms, uint8_t pod_id, uint8_t sequence, int sock, struct sockaddr_in* si) {
 
 	BPMPulseData_t data;
 	int i;
 
 	data.beat_interval_ms = interval_ms;
 	data.elapsed_ms = elapsed_ms;
+	data.pod_id = pod_id;
+	data.rolling_sequence = sequence;
+
 	sendto(sock, (char*)&data, sizeof(data), 0, (struct sockaddr*)si, sizeof(struct sockaddr_in));
 }
 

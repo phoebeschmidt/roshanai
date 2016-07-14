@@ -248,6 +248,36 @@ ProcessNextMeasurement(double val)
 	bs.prevTime = now;
 }
 
+void
+Usage() {
+	fprintf(stderr, "PulsePolarBPM -v -iPODID\n"
+		" -v for verbose output\n"
+		" -iPODID  where PODID is a small number indicating this pod\n\n");
+	exit(1);
+}
+
+void
+GetOpts(int argc, char* argv[], uint8_t* pod_id)
+{
+	int i;
+	for (i = 1; i < argc; i++) {
+
+		if (argv[i][0]=='-') {
+			switch(argv[i][1]) {
+			case 'i': *pod_id = atoi(argv[i]+2);
+			break;
+			case 'v': verbose++;
+			break;
+			default: fprintf(stderr, "unknown option '%c'\n", argv[i][1]);
+				Usage();
+			}
+		} else {
+			fprintf(stderr, "what option ???\n");
+			Usage();
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	char deviceName[GOIO_MAX_SIZE_DEVICE_NAME];
@@ -263,13 +293,16 @@ int main(int argc, char* argv[])
 
 	gtype_int32 numMeasurements,i;
 
-	if ((argc > 1) && (argv[1][0]=='-') && (argv[1][1]=='v')) verbose = 1;
+	uint8_t pod_id = 1;
+
+	GetOpts(argc, argv, &pod_id);
 
 	printf("GoIO_DeviceCheck version 1.1\n");
 	
 
 	char* ip = (char*)"192.168.1.100";
 	short port = 1234;
+	uint8_t sequence = 0; // packet sequence number
 	int sock;
 	struct sockaddr_in si_tobrain;
 
@@ -327,6 +360,8 @@ int main(int argc, char* argv[])
 						AnnounceBPMdata_udp(
 							bs.currentBeatInterval_ms, 
 							diff_timespec_ms(&bs.prevBeatTime, &bs.prevTime),
+							pod_id,
+							sequence++,
 							sock, &si_tobrain);
 
 						if (verbose) {
