@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-//#include <mqueue.h>
+#include <mqueue.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -12,6 +12,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <asoundlib.h>
 
 //#include "./alsa-lib-1.1.1/include/asoundlib.h"
 #include "pcm_config.h"
@@ -100,7 +102,7 @@ int pcmPlaySound(unsigned char* pcmSoundBuf, int pcmBufLen, unsigned int freqMs)
 {
     PcmSound newSound; 
     createPcmSound(&newSound, pcmSoundBuf, pcmBufLen, freqMs);
-    if (mq_send(commandmq, &newSound, sizeof(newSound), 0) != 0) {
+    if (mq_send(commandmq, (const char *)&newSound, sizeof(newSound), 0) != 0) {
         printf("Could not send message to play sound: %s\n", strerror(errno));
         return ERR_PCM_MISC;
     }
@@ -134,7 +136,7 @@ int pcmPlaybackInit()
         return err;
     }
     
-    if ((err = initializeSilentBuffer()) != 0) {
+    if ((err = initializeSilentBuffer(10000)) != 0) {
         return err;
     }
     
@@ -217,13 +219,15 @@ static void createPcmSound(PcmSound *sound, unsigned char *pcmSoundBuf, int pcmB
 static int setPcmParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams, snd_pcm_sw_params_t *swParams) 
 {
     int err;
-    if ((err == setHwParams(handle, hwParams) < 0) {
+    if ((err == setHwParams(handle, hwParams)) < 0) {
         return err;
     }
     
-    if ((err == setSwParams(handle, hwParams) < 0) {
+    if ((err == setSwParams(handle, swParams)) < 0) {
         return err;
     }
+    
+    return 0;
 }
 
 static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
@@ -256,7 +260,7 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
         return err;
     }
     
-    int rrate = REQUESTED_SAMPLE_RATE;
+    unsigned int rrate = REQUESTED_SAMPLE_RATE;
     if ((err = snd_pcm_hw_params_set_rate_near(handle, hwParams, &rrate, 0)) < 0) {
         printf("Could not set rate: %s\n", snd_strerror(err));
         return err;
@@ -268,27 +272,29 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
     
     printf("Init: Sample rate is %d\n", sampleRate);
     frameRate = sampleRate; // XXX clean this up
+    unsigned int requestedBufferSize = REQUESTED_BUFFER_SIZE_US;
+    unsigned int requestedPeriodSize = REQUESTED_PERIOD_SIZE_US;
     
-    if ((err = snd_pcm_hw_params_set_buffer_time_near(handle, hwParams, REQUESTED_BUFFER_SIZE_US, &dir)) < 0) {
+    if ((err = snd_pcm_hw_params_set_buffer_time_near(handle, hwParams, &requestedBufferSize, &dir)) < 0) {
         printf("Could not set buffer size: %s\n", snd_strerror(err));
         return err;
-    }
+    }// XXX check actual buffer size here
     if ((err = snd_pcm_hw_params_get_buffer_size(hwParams, &bufferSize)) < 0) {
         printf("Could not get buffer size: %s\n", snd_strerror(err));
         return err;
     }
-    printf("Init: Buffer size is %d frames\n", bufferSize);
+    printf("Init: Buffer size is %d frames\n", (int)bufferSize);
     
-    if ((err = snd_pcm_hw_params_set_period_time_near(handle, hwParams, REQUESTED_PERIOD_SIZE_US, &dir)) < 0) {
+    if ((err = snd_pcm_hw_params_set_period_time_near(handle, hwParams, &requestedPeriodSize, &dir)) < 0) {
         printf("Could not set period size: %s\n", snd_strerror(err));
         return err;
-    }
+    } // XXX check actual period size returned
     periodSize = (REQUESTED_PERIOD_SIZE_US * rrate)/ 1000; // XXX check this...
-    if ((err = snd_pcm_hw_params_get_period_size(hwParams, &periodSize), &dir) < 0) {
+    if ((err = snd_pcm_hw_params_get_period_size(hwParams, &periodSize, &dir)) < 0) {
         printf("Could not get period size: %s\n", snd_strerror(err));
         return err;
     }
-    printf("Init: PeriodSize is %d frames\n", periodSize);
+    printf("Init: PeriodSize is %d frames\n", (int)periodSize);
     bytesPerPeriod = periodSize*bytesPerSample*nChannels;
     
     if ((err = snd_pcm_hw_params(handle, hwParams)) < 0) {
@@ -302,7 +308,7 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
 static int setSwParams(snd_pcm_t *handle, snd_pcm_sw_params_t *swParams)
 {
     int err;
-    if ((err = snd_pcm_sw_params_current(handle, swpParams)) < 0) {
+    if ((err = snd_pcm_sw_params_current(handle, swParams)) < 0) {
         printf("Cannot determine current swParams: %s\n", snd_strerror(err));
         return err;
     }
@@ -351,7 +357,7 @@ static void* pcmPlaybackThread(void *arg)
     }
     
     // setting up the message queue fd structure first
-    ufds->fd = mqfd;
+    ufds->fd = commandmq;
     ufds->events = POLLIN;
     ufds->revents = 0;
     
@@ -388,7 +394,7 @@ static void* pcmPlaybackThread(void *arg)
                 if (mqEvent) {
                     printf("Receive poll event %d on message queue\n", mqEvent);
                     if (mqEvent & POLLIN) {
-                        int bytesRead = mq_receive(mqfd, &soundMsg, sizeof(soundMsg), NULL);
+                        int bytesRead = mq_receive(commandmq, (char *)(&soundMsg), sizeof(soundMsg), NULL);
                         if (bytesRead < sizeof(soundMsg)) {
                             printf("Received malformed sound message, discarding\n");
                         } else {
@@ -577,6 +583,8 @@ static int feedBuffer(void) {
             nextSoundTimeBytes -= totalBytesFilled;
         }
     }
+    
+    return 0;
 }
 
 static snd_pcm_sframes_t getAudioDelay(void)
@@ -697,7 +705,7 @@ static int pcmWrite()
 } 
 */
 
-void pcmPlaybackShutdown() 
+void pcmPlaybackStop() 
 {
     snd_pcm_close(handle);
 }
