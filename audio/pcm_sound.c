@@ -122,7 +122,11 @@ void pcmPlayHeartBeat(unsigned int freqBPS)
     
     // Get sound appropriate for this frequency
     sound = PcmConfig_getHbSound(freqBPS);
-    pcmPlaySound(sound->data, sound->datalen, 1000*60/freqBPS);
+    if (sound) {
+        pcmPlaySound(sound->data, sound->datalen, 1000*60/freqBPS);
+    } else {
+        printf("No heartbeat sound to play\n");
+    }
 }
 
 
@@ -165,7 +169,7 @@ int pcmPlaybackInit()
         return ERR_PCM_PARAM;
     }
     
-    if ((commandmq = mq_open("Pulse PCM MQ", O_RDWR|O_CREAT)) < 0) { 
+    if ((commandmq = mq_open("/Pulse_PCM_MQ", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG, NULL)) < 0) { 
         printf("Error creating message queue: %s\n", strerror(errno));
         return ERR_PCM_QUEUE;
     }

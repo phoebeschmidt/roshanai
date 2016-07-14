@@ -33,9 +33,10 @@ static LinkedList* LinkedListAdd(LinkedList *list, void *data)
     }
     
     LinkedList *tail;
-    while(list) {
-       tail = list; 
-       list = list->next;
+    LinkedList *curElement = list;
+    while(curElement) {
+       tail = curElement; 
+       curElement = curElement->next;
     }
     
     tail->next = newList;
@@ -62,6 +63,7 @@ int PcmConfig_Read()
         if (*strPtr == '#') {
             continue;
         }
+        printf("Read config file, line %s\n", strBuf);
         
         char *tokStr = strPtr;
         char *filename = NULL;
@@ -71,6 +73,7 @@ int PcmConfig_Read()
             tokStr = NULL;
             if (!filename) {
                 filename = strPtr;
+                printf("filename is %s\n", filename);
                 continue;
             }
             if (!validFreqStart) {
@@ -78,7 +81,8 @@ int PcmConfig_Read()
                 if (validFreqStart == -1) {
                     printf("Invalid frequency %s in config file\n", strPtr);
                     break;
-                } 
+                }
+                printf("freqStart is %d\n", validFreqStart);
                 continue;
             }
             
@@ -88,6 +92,8 @@ int PcmConfig_Read()
                     printf("Invalid frequency %s in config file\n", strPtr);
                     break;
                 }
+                printf("freqEnd is %d\n", validFreqEnd);
+                
                 // at this point, we should have all valid values for this entry.
                 // Add to linked list
                 HbData *data = (HbData *)malloc(sizeof(HbData));
@@ -142,7 +148,7 @@ int PcmConfig_Read()
                     goto hb_sounds_iterate;
                 }
                 
-                entry->data = filedata;
+                sound->data = (unsigned char *)filedata;
 hb_sounds_iterate:
                 if (dataFile) {
                     fclose(dataFile);
@@ -159,13 +165,15 @@ hb_sounds_iterate:
 // Iterate list of heartbeat sounds, looking for the right one
 // Note that we return the *last* matching sound, rather than the first one.
 // This allows me to easily set defaults in the config file
-HbData* PcmConfig_getHbSound(int freq) 
+HbData* PcmConfig_getHbSound(int freqBPM) 
 {
     LinkedList *entry = hbSoundList;
     HbData *bestSound = NULL;
+    printf("Looking for a sound with frequency %d\n", freqBPM);
     while (entry) {
         HbData *sound = (HbData *)(entry->data);
-        if (sound && sound->validFreqStart <= freq && sound->validFreqEnd >= freq) {
+        printf("Sound start freqstart is %d, end is %d\n", sound->validFreqStart, sound->validFreqEnd);
+        if (sound && sound->validFreqStart <= freqBPM && sound->validFreqEnd >= freqBPM) {
             bestSound = sound;
         }
         entry = entry->next;
