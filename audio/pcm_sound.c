@@ -15,7 +15,6 @@
 
 #include <asoundlib.h>
 
-//#include "./alsa-lib-1.1.1/include/asoundlib.h"
 #include "pcm_config.h"
 #include "pcm_utils.h"
 
@@ -169,11 +168,21 @@ int pcmPlaybackInit()
         return ERR_PCM_PARAM;
     }
     
-    if ((commandmq = mq_open("/Pulse_PCM_MQ", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG, NULL)) < 0) { 
+    struct mq_attr attrs;
+    memset(&attrs, 0, sizeof(attrs));
+    attrs.mq_flags = 0;
+    attrs.mq_maxmsg = 10;
+    attrs.mq_msgsize = sizeof(PcmSound);
+    
+    printf("creating message queue with attrs!\n");
+    
+//    mq_unlink("/Pulse_PCM_MQ");
+
+    if ((commandmq = mq_open("/Pulse_PCM_MQ", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG, &attrs)) < 0) { 
         printf("Error creating message queue: %s\n", strerror(errno));
         return ERR_PCM_QUEUE;
     }
-    
+        
     if ((err = pthread_attr_init(&attr)) != 0) {
         printf("Error initializing thread: %s\n", strerror(err));
         return ERR_PCM_MISC;   
@@ -196,19 +205,21 @@ static void createPcmSound(PcmSound *sound, unsigned char *pcmSoundBuf, int pcmB
         sound->soundBuf = pcmSoundBuf;
         sound->bufLen   = pcmBufLen;
         struct timespec currentTime;
-        clock_gettime(CLOCK_MONOTONIC, &currentTime);  // XXX does CLOCKMONOTONIC exist?
+        clock_gettime(CLOCK_MONOTONIC, &currentTime);
         
-        int playbackStartS  = freqMs/1000;
-        int playbackStartMs = freqMs - (playbackStartS * 1000);
+        int playbackStartDeltaS  = freqMs/1000;
+        int playbackStartMs = freqMs - (playbackStartDeltaS * 1000);
         int playbackStartNs = currentTime.tv_nsec + (playbackStartMs * 1000000);
         if (playbackStartNs < currentTime.tv_nsec) {  // do we ever actually wrap? check the resolution
+            printf("create pcm sound wraps!");
             // XXX check can wrap happen
         } else if (playbackStartNs > 1000000000) {
-            playbackStartS++;
+            printf("adding a second, subtracting ns\n");
+            playbackStartDeltaS++;
             playbackStartNs -= 1000000000;
         }
         
-        sound->startTime.tv_sec  = playbackStartS;
+        sound->startTime.tv_sec  = currentTime.tv_sec + playbackStartDeltaS;
         sound->startTime.tv_nsec = playbackStartNs;
         sound->freqMs = freqMs;
     }
@@ -254,8 +265,9 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
         return err;
     }
 
-    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_U8 )) < 0) {
-        printf("Could not sent sound format to 8bit: %s\n", snd_strerror(err));
+//    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_U8 )) < 0) {
+    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_U16 )) < 0) {
+        printf("Could not sent sound format to 16bit: %s\n", snd_strerror(err));
         return err;
     }
 
@@ -372,6 +384,7 @@ static void* pcmPlaybackThread(void *arg)
     }
     while (1) {
         int waitTime = -1;
+//        int waitTime = 1000;
         // XXX - from the sample code, it appears that POLL only works if you've 
         // done something to prime the pump and get the code into a running state
 //        if (snd_pcm_state(handle) == SND_PCM_STATE_RUNNING) {
@@ -398,12 +411,25 @@ static void* pcmPlaybackThread(void *arg)
                 if (mqEvent) {
                     printf("Receive poll event %d on message queue\n", mqEvent);
                     if (mqEvent & POLLIN) {
+                        struct mq_attr attr;
+                        mq_getattr(commandmq, &attr);
+//                        printf("sound message message size is %ld, buffer size is %d\n", attr.mq_msgsize, sizeof(soundMsg));
                         int bytesRead = mq_receive(commandmq, (char *)(&soundMsg), sizeof(soundMsg), NULL);
-                        if (bytesRead < sizeof(soundMsg)) {
-                            printf("Received malformed sound message, discarding\n");
+//                        printf("Read %d bytes from message queue\n", bytesRead);
+                        if (bytesRead == -1) {
+                            printf("Warning: Message queue returns error, %s\n", strerror(errno));
+                        } else if (bytesRead < sizeof(soundMsg)) {
+                            printf("Received malformed sound message, %d bytes, discarding\n", bytesRead);
                         } else {
+//                            printf("Buflen is %d\n", soundMsg.bufLen);
+//                            printf("FreqMs is %d\n", soundMsg.freqMs);
+//                               int bufLen;
+//    struct timespec startTime;
+//    int freqMs;
                             struct timespec currentTime;
-                            clock_gettime(CLOCK_MONOTONIC, &currentTime);  // XXX does CLOCKMONOTONIC exist?
+                            clock_gettime(CLOCK_MONOTONIC, &currentTime);
+//                            printf("Current time is %lds, %ldns\n", currentTime.tv_sec, currentTime.tv_nsec);
+//                            printf("Message time is %lds, %ldns\n", soundMsg.startTime.tv_sec, soundMsg.startTime.tv_nsec);
                             if ((currentTime.tv_sec > soundMsg.startTime.tv_sec) || 
                                  ( (currentTime.tv_sec == soundMsg.startTime.tv_sec) && 
                                    (currentTime.tv_nsec > soundMsg.startTime.tv_nsec))) {
@@ -435,6 +461,7 @@ static void* pcmPlaybackThread(void *arg)
                     } 
                     ufds[0].revents = 0;
                 } else {
+                    printf("Possible sound system event\n");
                     unsigned short revents;
                     snd_pcm_poll_descriptors_revents(handle, ufds+1, pcmDescriptorsCount, &revents);
                     if (revents & POLLERR) {
@@ -465,6 +492,7 @@ static void* pcmPlaybackThread(void *arg)
             }
 //        }
     }
+    return NULL;
         
 }
 
@@ -713,5 +741,7 @@ void pcmPlaybackStop()
 {
     snd_pcm_close(handle);
 }
+
+
 
 

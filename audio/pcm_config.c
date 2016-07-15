@@ -1,3 +1,5 @@
+#include <arpa/inet.h>
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -9,6 +11,7 @@
 
 #include "pcm_config.h"
 #include "pcm_utils.h"
+#include "wav.h"
 
 // Read configuration file and load the various heartbeat sounds
 // file format is defined as: <filename>, validRateStart, validRateEnd
@@ -20,6 +23,11 @@ typedef struct __LinkedList{
 } LinkedList;
 
 static LinkedList *hbSoundList = NULL;
+
+
+// WAV parsing
+static unsigned char *extractPCMFromWAV(unsigned char *wavData, int datalen);
+static void mungeWAVHeader(WAV_Header *header);
 
 
 static LinkedList* LinkedListAdd(LinkedList *list, void *data)
@@ -116,6 +124,7 @@ int PcmConfig_Read()
             HbData *sound = (HbData *)(entry->data);
             if (sound && sound->filename && !sound->data) {
                 FILE *dataFile = fopen(sound->filename, "rb");
+                char *filedata = NULL;
                 if (!dataFile) {
                     printf("Could not open heartbeat data file %s\n", sound->filename);
                     goto hb_sounds_iterate;
@@ -135,7 +144,7 @@ int PcmConfig_Read()
                     goto hb_sounds_iterate;
                 }
                 sound->datalen = filesize;
-                char *filedata = (char *)malloc(filesize);
+                filedata = (char *)malloc(filesize);
                 if (!filedata) {
                     printf("Could not allocate memory (%d bytes) for file %s\n", filesize, sound->filename);
                     goto hb_sounds_iterate;
@@ -144,12 +153,20 @@ int PcmConfig_Read()
                 int elemRead = fread(filedata, filesize, 1, dataFile);
                 if (elemRead != 1) {
                     printf("Error reading data from file %s\n", sound->filename);
-                    free(filedata);
                     goto hb_sounds_iterate;
                 }
                 
-                sound->data = (unsigned char *)filedata;
+                unsigned char *pcmData = extractPCMFromWAV((unsigned char *)filedata, filesize);
+                if (!pcmData) {
+                    printf("Could not extract PCM data from file %s\n", sound->filename);
+                    goto hb_sounds_iterate;
+                }
+                
+                sound->data = (unsigned char *)pcmData;
 hb_sounds_iterate:
+                if (filedata) {
+                    free(filedata);
+                }
                 if (dataFile) {
                     fclose(dataFile);
                 }
@@ -180,3 +197,134 @@ HbData* PcmConfig_getHbSound(int freqBPM)
     }
     return bestSound;
 }
+
+static char RIFF[4] = {'R', 'I', 'F', 'F'};
+static char WAVE[4] = {'W', 'A', 'V', 'E'};
+static char FMT_[4] = {'f', 'm', 't', ' '};
+static char DATA[4] = {'d', 'a', 't', 'a'};
+ 
+static unsigned char *extractPCMFromWAV(unsigned char *wavData, int datalen)
+{
+    if (datalen <= sizeof(WAV_Header)) {
+        printf("Invalid WAV file, cannot parse\n");
+        return NULL;
+    }
+    
+    WAV_Header *header = (WAV_Header *)wavData;
+    mungeWAVHeader(header);
+
+    if (memcmp(RIFF, (unsigned char *)&header->RIFF_ID, 4)) {
+        printf("Invalid WAV file, bad RIFF header\n");
+        return NULL;
+    }
+
+    if (memcmp(WAVE, (unsigned char *)&header->WAVEID, 4)) {
+        printf("Invalid WAV file, bad WAVE header\n");
+        return NULL;
+    }
+
+    if (memcmp(FMT_, (unsigned char *)&header->fmtChunk.ckID, 4)) {
+        printf("Invalid WAV file, bad FMT header\n");
+        return NULL;
+    }
+
+    if (header->fmtChunk.wFormatTag != WAV_FORMAT_PCM) {
+        printf("Not a PCM file (0x%x), rejecting\n", header->fmtChunk.wFormatTag);
+        return NULL;
+    }
+
+    if (header->fmtChunk.wBitsPerSample != 16) {
+        printf("Not 16 bits per sample (%d). Rejecting\n", header->fmtChunk.wBitsPerSample);
+        return NULL;
+    }
+    
+    if (header->fmtChunk.nSamplesPerSec != 44100) {
+        printf("Not 44.1K samples per second (%d), rejecting\n", header->fmtChunk.nSamplesPerSec);
+        return NULL;
+    }
+   
+    if (header->fmtChunk.nChannels != 1) {
+        printf("Not mono (%d). Rejecting\n", header->fmtChunk.nChannels);
+        return NULL;
+    }
+    
+    // all should be well at this point. check the final data block
+    int headerSize = 12 + 8 + header->fmtChunk.cksize; // 12 byte RIFF header, 8 byte fmt header, and ftm chunk
+    if (headerSize >= datalen) {
+        printf("No data in file.\n");
+        return NULL;
+    }
+    printf("fmtChunk size is %d\n", header->fmtChunk.cksize);
+    
+    // Now let's wade through the remaining chunks, looking for 'data'
+    unsigned char *curPtr = wavData + headerSize;
+    unsigned char *data_block = NULL;
+    while ((curPtr - wavData) + 8 < datalen) {
+        uint32_t blockLen = *(uint32_t *)(curPtr + 4);
+        printf("Found block %c%c%c%c\n", *curPtr, *(curPtr+1), *(curPtr+2), *(curPtr+3));
+//        printf("Found block size 0x%x\n", blockLen);
+//        printf("Found block size %d\n", blockLen);
+        if (blockLen == 0) {
+            return NULL;
+        }
+        if (!memcmp(DATA, curPtr, 4)) {
+            data_block = curPtr;
+            break;
+        }
+        curPtr += 8 + blockLen;
+    } 
+    
+    if (!data_block) {
+        printf("data block not found\n");
+        return NULL;
+    }
+    uint32_t dataSize = *(uint32_t *)(data_block + 4);
+    //dataSize = htonl(dataSize);
+    if ((data_block - wavData) + 8 + dataSize > datalen) {
+        printf("Invalid file - data is %d, but only %d bytes\n", dataSize, datalen - headerSize - 9);
+        return NULL;
+    }
+    
+
+    // allocate data, return copy of data from 
+    unsigned char *pcmData = (unsigned char *)malloc(dataSize);
+    if (!pcmData) {
+        printf("Could not allocate memory for pcm buffer\n");
+        return NULL;
+    }
+
+    memcpy(pcmData, wavData + headerSize + 8, dataSize);
+    return pcmData;
+}
+
+/*
+
+Ah, this is fucked. WAV byte is little endian, but network byte order is big endian. What
+we need here to make this code actually portable is ~ntoh functions - ie, little endian to host.
+At the moment, though, since the pi is also little endian, simply making this function do
+nothing works fine. 
+
+It's also important to note that the last three fields may not actually be in this chunk...
+Need to check cksize before munging them.
+*/
+
+static void mungeWAVHeader(WAV_Header *header) {
+/*
+    assert(header);
+    header->cksize                   = ntohl(header->cksize);
+    //header->fmtChunk.cksize          = ntohl(header->fmtChunk.cksize);
+    //header->fmtChunk.wFormatTag      = ntohs(header->fmtChunk.wFormatTag);
+    //header->fmtChunk.nChannels       = ntohs(header->fmtChunk.nChannels);
+    //header->fmtChunk.nSamplesPerSec  = ntohl(header->fmtChunk.nSamplesPerSec);
+   
+//    header->fmtChunk.nAvgBytesPerSec = ntohl(header->fmtChunk.nAvgBytesPerSec);
+//    header->fmtChunk.nBlockAlign     = ntohs(header->fmtChunk.nBlockAlign);
+    //header->fmtChunk.wBitsPerSample  = ntohs(header->fmtChunk.wBitsPerSample);
+//    header->fmtChunk.cbSize          = ntohs(header->fmtChunk.cbSize);
+//    header->fmtChunk.wValidBitsPerSample  = ntohs(header->fmtChunk.wValidBitsPerSample);
+    header->fmtChunk.dwChannelMask   = ntohl(header->fmtChunk.dwChannelMask);
+*/
+
+}
+
+
