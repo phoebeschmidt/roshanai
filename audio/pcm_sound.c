@@ -23,8 +23,10 @@
 // But wait, let's do the wait method...
 
 #define REQUESTED_SAMPLE_RATE 44100
-#define REQUESTED_BUFFER_SIZE_US 500000
-#define REQUESTED_PERIOD_SIZE_US 100000
+//#define REQUESTED_BUFFER_SIZE_US 500000
+#define REQUESTED_BUFFER_SIZE_US 200000
+//#define REQUESTED_PERIOD_SIZE_US 100000
+#define REQUESTED_PERIOD_SIZE_US  50000
 
 // NB - sounds are assumed to be mono
 
@@ -52,7 +54,7 @@ static snd_pcm_uframes_t  bufferSize = 0;
 static snd_pcm_uframes_t  periodSize = 0; 
 static int bytesPerPeriod = 0; // derived from periodSize and other values
 
-static int bytesPerSample = 8; 
+static int bytesPerSample = 16; 
 static int nChannels      = 1;
 static int frameRate      = REQUESTED_SAMPLE_RATE; 
 
@@ -194,6 +196,7 @@ int pcmPlaybackInit()
     } 
     
     pthread_attr_destroy(&attr); 
+
     
     return 0;
 }
@@ -266,7 +269,7 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
     }
 
 //    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_U8 )) < 0) {
-    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_U16 )) < 0) {
+    if ((err = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_S16_LE )) < 0) {
         printf("Could not sent sound format to 16bit: %s\n", snd_strerror(err));
         return err;
     }
@@ -292,19 +295,25 @@ static int setHwParams(snd_pcm_t *handle, snd_pcm_hw_params_t *hwParams) {
     unsigned int requestedPeriodSize = REQUESTED_PERIOD_SIZE_US;
     
     if ((err = snd_pcm_hw_params_set_buffer_time_near(handle, hwParams, &requestedBufferSize, &dir)) < 0) {
-        printf("Could not set buffer size: %s\n", snd_strerror(err));
+        printf("Could not set buffer time: %s\n", snd_strerror(err));
         return err;
     }// XXX check actual buffer size here
+    printf("Init: actual buffersize is %d usec\n", requestedBufferSize);
     if ((err = snd_pcm_hw_params_get_buffer_size(hwParams, &bufferSize)) < 0) {
         printf("Could not get buffer size: %s\n", snd_strerror(err));
         return err;
     }
     printf("Init: Buffer size is %d frames\n", (int)bufferSize);
+    // XXX TODO - since we're now using 16 bit samples, I have to care about endianness
+    // Fortunately, since WAV files appear to be little endian and this processor is little-endian,
+    // all should be well. But.
     
     if ((err = snd_pcm_hw_params_set_period_time_near(handle, hwParams, &requestedPeriodSize, &dir)) < 0) {
         printf("Could not set period size: %s\n", snd_strerror(err));
         return err;
     } // XXX check actual period size returned
+    printf("Init: Actual Period time is %d usec\n", requestedPeriodSize);
+    
     periodSize = (REQUESTED_PERIOD_SIZE_US * rrate)/ 1000; // XXX check this...
     if ((err = snd_pcm_hw_params_get_period_size(hwParams, &periodSize, &dir)) < 0) {
         printf("Could not get period size: %s\n", snd_strerror(err));
@@ -366,6 +375,7 @@ static void* pcmPlaybackThread(void *arg)
         printf("PCM Playback Fatal: Invalid number of poll descriptors\n");
         return NULL;
     }
+    printf("Have %d descriptors\n", pcmDescriptorsCount);
     ufds = malloc(sizeof(struct pollfd) * (pcmDescriptorsCount + 1));
     if (!ufds) {
         printf("PCM Playback Fatal: Could not allocate memory for poll descriptors \n");
@@ -382,8 +392,23 @@ static void* pcmPlaybackThread(void *arg)
         printf("Unable to obtain poll descriptors for playback: %s\n", snd_strerror(err));
         return NULL;
     }
+    int waitTime = -1;
+    printf("Open state is %d\n", SND_PCM_STATE_OPEN);
+    printf("Setup state is %d\n", SND_PCM_STATE_SETUP);
+    printf("Prepared state is %d\n", SND_PCM_STATE_PREPARED);
+    printf("Running state is %d\n", SND_PCM_STATE_RUNNING);
+    printf("Xrun state is %d\n", SND_PCM_STATE_XRUN);
+    printf("Draining state is %d\n", SND_PCM_STATE_DRAINING);
+    printf("Paused state is %d\n", SND_PCM_STATE_PAUSED);
+    printf("Suspended state is %d\n", SND_PCM_STATE_SUSPENDED);
+    printf("Disconnected state is %d\n", SND_PCM_STATE_DISCONNECTED);
     while (1) {
-        int waitTime = -1;
+        int snd_state = snd_pcm_state(handle);
+        printf("Initial Sound state is %d\n", snd_state);
+        if (snd_state == SND_PCM_STATE_PREPARED) {
+            feedBuffer();
+        }
+        printf("Final sound state is %d\n", snd_state);
 //        int waitTime = 1000;
         // XXX - from the sample code, it appears that POLL only works if you've 
         // done something to prime the pump and get the code into a running state
@@ -448,10 +473,13 @@ static void* pcmPlaybackThread(void *arg)
                                 }
                                 int deltaNs = nextTime.tv_nsec - currentTime.tv_nsec;
                                 int nextSoundDelayMs = (deltaS * 1000) +  deltaNs/1000000; // how long to wait to play the next sound
+                                printf("next sound delay ms is %d\n", nextSoundDelayMs);
                                 snd_pcm_sframes_t delayFrames = getAudioDelay();
                                 int delayMs = delayFrames*1000/frameRate; // XXXX check this
-                                nextSoundTimeBytes = ((nextSoundDelayMs - delayMs) * frameRate * nChannels)/1000;
+                                printf("Audio buffer delayMs is %d\n", delayMs);
+                                nextSoundTimeBytes = ((nextSoundDelayMs - delayMs) * frameRate * nChannels * 2 )/1000; // XXX 2 bytes per sample
                                 nextSoundTimeBytes = MAX(0, nextSoundTimeBytes);
+                                nextSoundTimeBytes = (nextSoundTimeBytes >> 4) << 4;
                                 waitTime = soundMsg.freqMs;
                                 lastSoundBuf    = nextSoundBuf;
                                 lastSoundLength = nextSoundLength;
@@ -469,6 +497,7 @@ static void* pcmPlaybackThread(void *arg)
                         if (snd_pcm_state(handle) == SND_PCM_STATE_XRUN ||
                             snd_pcm_state(handle) == SND_PCM_STATE_SUSPENDED) {
                             err = snd_pcm_state(handle) == SND_PCM_STATE_XRUN ? -EPIPE : -ESTRPIPE;
+                            printf("PCM state is %d\n", snd_pcm_state(handle));
                             if (xrun_recovery(handle, err) < 0) {
                                 printf("Cannot recover from error %s\n", snd_strerror(err));
                                 exit(EXIT_FAILURE);// XXX not what I want...
@@ -476,17 +505,22 @@ static void* pcmPlaybackThread(void *arg)
                         }
                     }
                     if (revents & POLLOUT) {
+                        printf("feeding...\n");
                         feedBuffer();
                     }
                     struct timespec currentTime;
-                    clock_gettime(CLOCK_MONOTONIC, &currentTime);  // XXX does CLOCKMONOTONIC exist?
+                    clock_gettime(CLOCK_MONOTONIC, &currentTime);
                     int deltaS = currentTime.tv_sec - pollStartTime.tv_sec;
+                    printf("deltaS is %d\n", deltaS);
+                    printf("detalNs is %ld\n", (long)(currentTime.tv_nsec - pollStartTime.tv_nsec));
                     if (currentTime.tv_nsec < pollStartTime.tv_nsec) {
                         deltaS -= 1;
                         currentTime.tv_nsec += 1000000000;
                     }
-                    int deltaNs = currentTime.tv_nsec - pollStartTime.tv_nsec;
-                    waitTime = deltaS*1000 + deltaNs*1000000;
+                    long deltaNs = currentTime.tv_nsec - pollStartTime.tv_nsec;
+                    printf("new deltaNS is %ld\n", deltaNs);
+                    waitTime = deltaS*1000 + deltaNs/1000000;
+                    printf("waittime is %d ms\n", waitTime);
                     assert(waitTime >= 0); 
                 }
             }
@@ -496,27 +530,31 @@ static void* pcmPlaybackThread(void *arg)
         
 }
 
-
+// write one period to the buffer
 static int feedBuffer(void) {
     int reInit = 0;
     int totalBytesFilled = 0;
+    
+    printf("Bytes per period is %d\n", bytesPerPeriod);
     
     // if we're currently playing a sound, attempt to finish it
     if (currentSoundBuf) {
         assert(currentSoundBufPtr);
         int bytesToWrite = MIN(currentSoundLength - (currentSoundBufPtr - currentSoundBuf), bytesPerPeriod);
+        printf("Initial sound fill\n");
         int bytesFilled = fillBufferWithSound(currentSoundBufPtr, bytesToWrite, &reInit);
         if (bytesFilled >= 0) {
+            printf("Wrote %d bytes to sound buffer\n", bytesFilled);
             totalBytesFilled += bytesFilled;
             currentSoundBufPtr += bytesFilled;
             if (currentSoundBufPtr - currentSoundBuf >= currentSoundLength) { 
                 // we've finished the current sound. Reset variables
-                currentSoundBuf = NULL;
+                currentSoundBuf    = NULL;
                 currentSoundBufPtr = NULL;
                 currentSoundLength = 0;
             }
             if (bytesFilled != bytesToWrite) {
-                printf("Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
+                printf("Primary write: Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
                 if (reInit) {
                     if (nextSoundBuf) {
                         nextSoundTimeBytes = MAX(0, nextSoundTimeBytes - bytesFilled);
@@ -533,20 +571,25 @@ static int feedBuffer(void) {
     // if there's space in the buffer, add more stuff
     // silence and then the next sound, if there is a next sound.
     if (totalBytesFilled < bytesPerPeriod) {
-        assert(!currentSoundBuf);
+        assert(!currentSoundBuf); // XXX This assertion fails if we couldn't write all the bytes above...
         int bytesFilled = 0;
         int bytesToWrite = 0;
         if (!nextSoundBuf) {
+            // no next sound - fill the rest of the thing with silence...
             bytesToWrite = bytesPerPeriod - totalBytesFilled;
+            printf("Silence fill 1\n");
             bytesFilled = fillBufferWithSilence(bytesToWrite, &reInit);
         } else if (nextSoundTimeBytes > totalBytesFilled) {
+            // if next sound starts after the end of what we've got, fill the bits between
+            // with silence.
             bytesToWrite = MIN(bytesPerPeriod-totalBytesFilled, nextSoundTimeBytes - totalBytesFilled);
+            printf("Silence fill 2\n");
             bytesFilled = fillBufferWithSilence(bytesToWrite, &reInit);
         } 
         if (bytesFilled >= 0) {
             totalBytesFilled += bytesFilled;
             if (bytesFilled != bytesToWrite) {
-                printf("Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
+                printf("Fill silence: Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
                 if (reInit) {
                     if (nextSoundBuf) {
                         nextSoundTimeBytes = MAX(0, nextSoundTimeBytes - bytesFilled);
@@ -568,7 +611,8 @@ static int feedBuffer(void) {
             nextSoundBuf       = NULL;
             nextSoundTimeBytes = 0;
             bytesToWrite = MIN(currentSoundLength, bytesPerPeriod-totalBytesFilled);
-            bytesFilled = fillBufferWithSound(currentSoundBuf, bytesFilled, &reInit);
+            printf("Fill sound 2\n");
+            bytesFilled = fillBufferWithSound(currentSoundBuf, bytesToWrite, &reInit);
             if (bytesFilled >= 0) {
                 totalBytesFilled += bytesFilled;
                 if (currentSoundLength <= bytesFilled) {
@@ -579,7 +623,7 @@ static int feedBuffer(void) {
                     currentSoundBufPtr += bytesFilled;
                 }
                 if (bytesFilled != bytesToWrite) {
-                    printf("Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
+                    printf("2ndary Fill sound: Did not write as many bytes as expected: %d written, vs %d expected\n", bytesFilled, bytesToWrite);
                     if (reInit) {
                         return -1;
                     } 
@@ -632,6 +676,7 @@ static snd_pcm_sframes_t getAudioDelay(void)
         delayFrames = snd_pcm_status_get_delay(status);
     }
     
+    printf("Audio delay is %ld frames\n", (long)delayFrames);
     return delayFrames;
 }
 
@@ -646,12 +691,13 @@ static int initializeSilentBuffer(int silentTimeMs)
     if (!silentBuffer) {
         return ERR_PCM_MEMORY;
     }
-    snd_pcm_format_set_silence(SND_PCM_FORMAT_U8, silentBuffer, nSamples);
+    snd_pcm_format_set_silence(SND_PCM_FORMAT_S16_LE, silentBuffer, nSamples);
     return 0;
 }
 
 static int fillBufferWithSilence(int silentBytes, int *reInit) 
 {
+    printf("Writing some silence...\n");
     return fillBufferWithSound(silentBuffer, silentBytes, reInit);
 }
  
@@ -667,6 +713,7 @@ static int fillBufferWithSound(unsigned char *soundBuffer, int soundBytes, int *
     int nFramesToWrite = soundBytes/(bytesPerSample*nChannels);
     while (nFramesToWrite > 0) {
         nFramesWritten = 0;
+        printf("writing %d bytes, %d frames\n", soundBytes, nFramesToWrite);
         err = snd_pcm_writei(handle, soundBuffer, nFramesToWrite);
         if (err < 0) {
             printf("Error writing to sound buffer, error is %s\n", strerror(err));

@@ -52,7 +52,6 @@ static LinkedList* LinkedListAdd(LinkedList *list, void *data)
     return list;
 }
 
-
 int PcmConfig_Read()
 {
     char strBuf[255];
