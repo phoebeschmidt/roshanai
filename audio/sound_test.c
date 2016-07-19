@@ -15,6 +15,10 @@
 #define COMMAND_PORT 5001
 #define HB_PORT 5000
 
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif // MAX
+
 /*
 typedef unsigned char uint8_t;
 typedef unsigned long uint32_t;
@@ -49,7 +53,7 @@ typedef struct __attribute((packed)) {
     uint32_t command_data;        // may or may not have anything in it, depending on the command
 } PulseCommand_t;
 
-uint8_t myId = 1; // XXX need to read this from a config file somewhere
+uint8_t myId = 0; // XXX need to read this from a config file somewhere
 uint8_t hbSource;   
 int hbSocket;
 int cmdSocket; 
@@ -110,11 +114,19 @@ static int initBroadcastSocketListener(unsigned short port)
         return rv;
     }
     
+/*
+    if ((rv = setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof optval)) != 0) {
+        printf("setsocketopt returns %d, %s\n", rv, strerror(errno));
+        return rv;
+    }
+*/
     
     memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = htons(port);
-    addr.sin_addr.s_addr = inet_addr(BROADCAST_ADDR);
+    addr.sin_addr.s_addr = inet_addr(BROADCAST_ADDR); /* INADDR_ANY; */
+    
+    printf("Broadcast addr is 0x%x\n", inet_addr(BROADCAST_ADDR));
     
     if ((rv = bind(sockfd, (const struct sockaddr *)&addr, sizeof(addr))) < 0) {
         printf("bind returns %s\n", strerror(errno));
@@ -128,8 +140,12 @@ static void pulseAudioListen()
 {
     struct timeval timeout;
     int rv;
+    int nfds = MAX(cmdSocket, hbSocket) + 1;
     
     fd_set read_fds, except_fds;
+    printf("Command socket is %d\n", cmdSocket);
+    printf("Heartbeat socket is %d\n", hbSocket);
+    printf("nfds is %d\n", nfds);
     while(1) {
         FD_ZERO(&read_fds);
         FD_ZERO(&except_fds);
@@ -139,11 +155,13 @@ static void pulseAudioListen()
         FD_SET(hbSocket, &except_fds);
     
         // come up for air every second
-        timeout.tv_sec = 1;
+        timeout.tv_sec  = 1;
         timeout.tv_usec = 0;
         
-        // wait for timeout, or event on a socket... 
-        rv = select(2, &read_fds, NULL, &except_fds, &timeout);
+        // wait for timeout, or event on a socket...
+        rv = select(nfds, &read_fds, NULL, &except_fds, &timeout);
+        
+        printf("After select, rv is %d\n", rv);
         
         if (rv == 0) {
             printf("listen timeout... all is well...\n");
@@ -155,6 +173,10 @@ static void pulseAudioListen()
             continue;
         }
         
+        if (rv > 0) {
+            printf("Select returns event\n");
+        }
+        
         if (FD_ISSET(cmdSocket, &read_fds)) {
             // receive command datagram
             PulseCommand_t command;
@@ -164,6 +186,7 @@ static void pulseAudioListen()
             } else if (numBytesRead < sizeof(command)) {
                 printf("WARNING: Command socket: Receiving fewer bytes than expected, ignoring\n"); // Do we want/need to do anything with this?
             } else {
+                printf("Received data on command socket\n");
                 // a real live command to parse!
                 if (command.receiver_id == myId || command.receiver_id == ALL_RECEIVERS) {
                     if (command.command_id == HEARTBEAT_SOURCE) {
@@ -185,11 +208,13 @@ static void pulseAudioListen()
                 printf("WARNING: HB socket: Receiving fewer bytes than expected, ignoring\n"); // Do we want/need to do anything with this?
             } else {
                 // a real, live heartbeat!
+                printf("Received data on hb socket, id is %d\n", hbData.pod_id);
                 if (hbData.pod_id == hbSource) {
                     uint32_t hbRate = 60*1000/(hbData.beat_interval_ms); // yes, I am rounding here.
                     if (hbRate < 30 || hbRate > 200) { 
                         printf("Heartbeat rate %d is out of bounds\n", hbRate);
                     } else {
+                        printf("received heart beat at %d\n", hbRate);
                         pcmPlayHeartBeat(hbRate);
                     }
                 }

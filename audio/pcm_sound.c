@@ -566,7 +566,7 @@ static void* pcmPlaybackThread(void *arg)
                         }
                     }
                     if (revents & POLLOUT) {
-                        printf("Sound system requires feeding\n");
+                        //printf("Sound system requires feeding\n");
                         feedBuffer();
                     }
                     /*
@@ -618,7 +618,7 @@ static int feedBuffer(void) {
         printf("WRITE SOUND DATA 1\n");
         int bytesFilled = fillBufferWithSound(currentSoundBufPtr, bytesToWrite, &reInit);
         if (bytesFilled >= 0) {
-            printf("Wrote %d bytes to sound buffer\n", bytesFilled);
+//            printf("Wrote %d bytes to sound buffer\n", bytesFilled);
             totalBytesFilled += bytesFilled;
             currentSoundBufPtr += bytesFilled;
             if (currentSoundBufPtr - currentSoundBuf >= currentSoundLength) { 
@@ -651,13 +651,13 @@ static int feedBuffer(void) {
         if (!nextSoundBuf) {
             // no next sound - fill the rest of the thing with silence...
             bytesToWrite = bytesPerPeriod - totalBytesFilled;
-            printf("Silence fill 1\n");
+//            printf("Silence fill 1\n");
             bytesFilled = fillBufferWithSilence(bytesToWrite, &reInit);
         } else if (nextSoundTimeBytes > totalBytesFilled) {
             // if next sound starts after the end of what we've got, fill the bits between
             // with silence.
             bytesToWrite = MIN(bytesPerPeriod-totalBytesFilled, nextSoundTimeBytes - totalBytesFilled);
-            printf("Silence fill 2\n");
+//            printf("Silence fill 2\n");
             bytesFilled = fillBufferWithSilence(bytesToWrite, &reInit);
         } 
         if (bytesFilled >= 0) {
@@ -772,7 +772,7 @@ static int initializeSilentBuffer(int silentTimeMs)
 
 static int fillBufferWithSilence(int silentBytes, int *reInit) 
 {
-    printf("Writing some silence...\n");
+//    printf("Writing some silence...\n");
     return fillBufferWithSound(silentBuffer, silentBytes, reInit);
 }
  
@@ -788,7 +788,7 @@ static int fillBufferWithSound(unsigned char *soundBuffer, int soundBytes, int *
     int nFramesToWrite = soundBytes/(bytesPerSample*nChannels);
     while (nFramesToWrite > 0) {
         nFramesWritten = 0;
-        printf("writing %d bytes, %d frames\n", soundBytes, nFramesToWrite);
+//        printf("writing %d bytes, %d frames\n", soundBytes, nFramesToWrite);
         err = snd_pcm_writei(handle, soundBuffer, nFramesToWrite);
         if (err < 0) {
             printf("Error writing to sound buffer, error is %s\n", strerror(err));
@@ -800,7 +800,7 @@ static int fillBufferWithSound(unsigned char *soundBuffer, int soundBytes, int *
             } 
             break;
         } else {
-            printf("Wrote %d frames\n", err);
+//            printf("Wrote %d frames\n", err);
             nFramesWritten = err;
         }
         nFramesToWrite -= nFramesWritten;
