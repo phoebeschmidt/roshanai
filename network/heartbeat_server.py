@@ -97,7 +97,7 @@ class HeartBeatSender():
                     
         def sendHeartBeat(self):
             print "Sending heart beat"
-            heartBeatData = struct.pack("=BBHLLf", self.heartBeatId, self.heartBeatSequenceId + 1, 1000/self.bps, 0, time.time(), self.bps*60)
+            heartBeatData = struct.pack("=BBHLLf", self.heartBeatId, self.heartBeatSequenceId, 1000/self.bps, 0, time.time(), self.bps*60)
             self.heartBeatSequenceId += 1
             if (self.heartBeatSequenceId >= 256) :
                 self.heartBeatSequenceId = 0
