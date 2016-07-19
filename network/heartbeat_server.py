@@ -65,7 +65,7 @@ class HeartBeatSender():
                 # block until there's something to do
                 timeout = heartBeatTimeout - datetime.datetime.now()
                 try:
-                    signal = self.requestQueue.get(True, timeout.total_seconds()) // XXX timeout could be negative!! FIXME
+                    signal = self.requestQueue.get(True, timeout.total_seconds()) # XXX timeout could be negative!! FIXME
                     print signal
                     try:
                         if signal["frequency"] > 0:
