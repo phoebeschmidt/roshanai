@@ -25,6 +25,7 @@ import sys
 # Common variables
 #BROADCAST_ADDR = "224.51.105.104"
 BROADCAST_ADDR = "255.255.255.255"
+#BROADCAST_ADDR = "127.255.255.255"
 HEARTBEAT_PORT = 5000
 COMMAND_PORT   = 5001
 MULTICAST_TTL  = 4
@@ -80,8 +81,13 @@ def createBroadcastListener(port, addr=BROADCAST_ADDR):
 #    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
 #    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, 1)
 
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+
     # Bind to the port
-    sock.bind((addr, port))
+    print "Addr is ", addr
+#    sock.bind((addr, port))
+    sock.bind(('', port))
 
 #    # Set some more multicast options
 #    mreq = struct.pack("=4sl", socket.inet_aton(addr), socket.INADDR_ANY)
@@ -90,16 +96,16 @@ def createBroadcastListener(port, addr=BROADCAST_ADDR):
     return sock
     
 def handleHeartBeatData(heartBeatData):
-    source, sequenceId, beatIntervalMs, beatOffsetMs, timestamp, bpmApprox = struct.unpack("BBHLLf", heartBeatData)
-    print "heartbeat source is %d bpm is %d" % (source, bpm) # XXX bps is not what we want. We want bpm.
+    source, sequenceId, beatIntervalMs, beatOffsetMs, timestamp, bpmApprox = struct.unpack("=BBHLLf", heartBeatData)
+    print "heartbeat source is %d bpm is %d" % (source, bpmApprox) # XXX bps is not what we want. We want bpm.
     if source is currentHeartBeatSource and allowHeartBeats:
         # XXX should use the beatOffset (time lapse since event) 
         # XXX much of current computations done assuming much simpler hb structure - can probably
         # make this all much easier now.
         stopHeartBeat() # XXX should allow the last bit of the heart beat to finish, if we're in the middle
         if previousHeartBeatTime:
-//            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(seconds = 1/(bpm*60))
-            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(milliseconds = beatIntervalMs))
+#            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(seconds = 1/(bpm*60))
+            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(milliseconds = beatIntervalMs)
         else:
             heartBeatStartTime = datetime.datetime.now()
             
@@ -117,7 +123,7 @@ def sortEventQueue():
 
 def handleCommandData(commandData):
     global currentHeartBeatSource
-    receiverId, commandTrackingId, commandId = struct.unpack("BBH", commandData)
+    receiverId, commandTrackingId, commandId = struct.unpack("=BBH", commandData)
     if receiverId is gReceiverId:                  # it's for us!
         if command is Command.STOP_ALL:
             removeAllEffects()
@@ -125,15 +131,15 @@ def handleCommandData(commandData):
             allowHeartBeats = False
             stopHeartBeat()
         elif command is START_EFFECT:
-            dummy1, dummy2, dummy3, effectId = struct.unpack("BBHL", commandData)
+            dummy1, dummy2, dummy3, effectId = struct.unpack("=BBHL", commandData)
             loadEffect(effectId, datetime.datetime.now())
         elif command is STOP_EFFECT:
-            dummy1, dummy2, dummy3, effectId = struct.unpack("BBHL", commandData)
+            dummy1, dummy2, dummy3, effectId = struct.unpack("=BBHL", commandData)
             removeEffect(effectId)
         elif command is START_HEARTBEAT:
             allowHeartBeats = True
         elif command is USE_HEARTBEAT_SOURCE:
-            dummy1, dummy2, dummy3, source = struct.unpack("BBHL", commandData)
+            dummy1, dummy2, dummy3, source = struct.unpack("=BBHL", commandData)
             currentHeartBeatSource = source
     
         sortEventQueue()

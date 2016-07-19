@@ -97,7 +97,7 @@ class HeartBeatSender():
                     
         def sendHeartBeat(self):
             print "Sending heart beat"
-            heartBeatData = struct.pack("BBHLLf", self.heartBeatId, self.heartBeatSequenceId + 1, 1000/self.bps, 0, time.time(), self.bps*60)
+            heartBeatData = struct.pack("=BBHLLf", self.heartBeatId, self.heartBeatSequenceId + 1, 1000/self.bps, 0, time.time(), self.bps*60)
             self.heartBeatSequenceId += 1
             if (self.heartBeatSequenceId >= 256) :
                 self.heartBeatSequenceId = 0
@@ -118,7 +118,7 @@ class CommandSender():
         self.socket = createBroadcastSender()
 
     def sendCommand(self, unitId, command, data):
-        commandData = struct.pack("BBHL", unitId, self.cmdTrackingId, command_id, data) # XXX for the moment, no extra data associated with command  XXX WTF IS THE COMMAND???
+        commandData = struct.pack("=BBHL", unitId, self.cmdTrackingId, command_id, data) # XXX for the moment, no extra data associated with command  XXX WTF IS THE COMMAND???
         self.cmdTrackingId += 1
         if (self.cmdTrackingId >= 256):
             self.cmdTrackingId = 0
