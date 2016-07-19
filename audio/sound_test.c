@@ -12,8 +12,8 @@
 #define BROADCAST_ADDR "255.255.255.255"
 #define ALL_RECEIVERS 255
 #define HEARTBEAT_SOURCE 1
-#define COMMAND_PORT 6660
-#define HB_PORT 5550
+#define COMMAND_PORT 5001
+#define HB_PORT 5000
 
 /*
 typedef unsigned char uint8_t;
