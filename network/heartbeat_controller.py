@@ -23,7 +23,8 @@ import sys
 
 
 # Common variables
-BROADCAST_ADDR = "224.51.105.104"
+#BROADCAST_ADDR = "224.51.105.104"
+BROADCAST_ADDR = "255.255.255.255"
 HEARTBEAT_PORT = 5000
 COMMAND_PORT   = 5001
 MULTICAST_TTL  = 4
@@ -59,6 +60,7 @@ allowHeartBeats = True
 currentHeartBeatSource = 0
 ser = None
 previousHeartBeatTime = None
+gReceiverId = 0  # XXX need to set the receiver Id, or more properly, the unit id, from a file or something
 
     
 
@@ -66,7 +68,7 @@ previousHeartBeatTime = None
 # rather than the beginning. XXX TODO
 
             
-def createMulticastListener(port, addr=BROADCAST_ADDR):
+def createBroadcastListener(port, addr=BROADCAST_ADDR):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # Set some options to make it multicast-friendly
@@ -75,25 +77,29 @@ def createMulticastListener(port, addr=BROADCAST_ADDR):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     except AttributeError:
         pass # Some systems don't support SO_REUSEPORT
-    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, 1)
+#    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+#    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, 1)
 
     # Bind to the port
     sock.bind((addr, port))
 
-    # Set some more multicast options
-    mreq = struct.pack("=4sl", socket.inet_aton(addr), socket.INADDR_ANY)
-    sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+#    # Set some more multicast options
+#    mreq = struct.pack("=4sl", socket.inet_aton(addr), socket.INADDR_ANY)
+#    sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
     return sock
     
 def handleHeartBeatData(heartBeatData):
-    source, bpm = struct.unpack("BB", heartBeatData)
+    source, sequenceId, beatIntervalMs, beatOffsetMs, timestamp, bpmApprox = struct.unpack("BBHLLf", heartBeatData)
     print "heartbeat source is %d bpm is %d" % (source, bpm) # XXX bps is not what we want. We want bpm.
     if source is currentHeartBeatSource and allowHeartBeats:
+        # XXX should use the beatOffset (time lapse since event) 
+        # XXX much of current computations done assuming much simpler hb structure - can probably
+        # make this all much easier now.
         stopHeartBeat() # XXX should allow the last bit of the heart beat to finish, if we're in the middle
         if previousHeartBeatTime:
-            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(seconds = 1/(bpm*60))
+//            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(seconds = 1/(bpm*60))
+            heartBeatStartTime = previousHeartBeatTime + daytime.timedelta(milliseconds = beatIntervalMs))
         else:
             heartBeatStartTime = datetime.datetime.now()
             
@@ -111,25 +117,26 @@ def sortEventQueue():
 
 def handleCommandData(commandData):
     global currentHeartBeatSource
-    command = struct.unpack("B", commandData);
-    if command is Command.STOP_ALL:
-        removeAllEffects()
-    elif command is STOP_HEARTBEAT:
-        allowHeartBeats = False
-        stopHeartBeat()
-    elif command is START_EFFECT:
-        dummy, effectId = struct.unpack("BB", commandData)
-        loadEffect(effectId, datetime.datetime.now())
-    elif command is STOP_EFFECT:
-        dummy, effectId = struct.unpack("BB", commandData)
-        removeEffect(effectId)
-    elif command is START_HEARTBEAT:
-        allowHeartBeats = True
-    elif command is USE_HEARTBEAT_SOURCE:
-        dummy, source = struct.unpack("BB", commandData)
-        currentHeartBeatSource = source
+    receiverId, commandTrackingId, commandId = struct.unpack("BBH", commandData)
+    if receiverId is gReceiverId:                  # it's for us!
+        if command is Command.STOP_ALL:
+            removeAllEffects()
+        elif command is STOP_HEARTBEAT:
+            allowHeartBeats = False
+            stopHeartBeat()
+        elif command is START_EFFECT:
+            dummy1, dummy2, dummy3, effectId = struct.unpack("BBHL", commandData)
+            loadEffect(effectId, datetime.datetime.now())
+        elif command is STOP_EFFECT:
+            dummy1, dummy2, dummy3, effectId = struct.unpack("BBHL", commandData)
+            removeEffect(effectId)
+        elif command is START_HEARTBEAT:
+            allowHeartBeats = True
+        elif command is USE_HEARTBEAT_SOURCE:
+            dummy1, dummy2, dummy3, source = struct.unpack("BBHL", commandData)
+            currentHeartBeatSource = source
     
-    sortEventQueue()
+        sortEventQueue()
         
     # could have a define effect as well... XXX MAYBE
     
@@ -256,8 +263,8 @@ def sendEvents():
 
 if __name__ == '__main__':
     running = True
-    heartBeatListener = createMulticastListener(HEARTBEAT_PORT)
-    commandListener   = createMulticastListener(COMMAND_PORT)
+    heartBeatListener = createBroadcastListener(HEARTBEAT_PORT)
+    commandListener   = createBroadcastListener(COMMAND_PORT)
     ser = initSerial() #XXX need to handle serial disconnect, restart
     eventQueue = [] # NB - don't need a real queue here. Only one thread 
     try:

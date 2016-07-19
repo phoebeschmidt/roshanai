@@ -22,7 +22,8 @@ heartBeatSender      = None
 commandSender        = None
 running              = True
 
-BROADCAST_ADDR = "224.51.105.104"
+#BROADCAST_ADDR = "224.51.105.104"
+BROADCAST_ADDR = "255.255.255.255"
 HEARTBEAT_PORT = 5000
 COMMAND_PORT   = 5001
 MULTICAST_TTL  = 4
@@ -51,7 +52,9 @@ class HeartBeatSender():
             Thread.__init__(self)
             self.requestQueue = requestQueue
             self.heartBeatId  = heartBeatId
-            self.socket = createMulticastSender()
+            self.heartBeatSequenceId = 0
+            self.cmdTrackingId = 0
+            self.socket = createBroadcastSender()
             self.bps = -1;
         
         def run(self):
@@ -62,12 +65,15 @@ class HeartBeatSender():
                 # block until there's something to do
                 timeout = heartBeatTimeout - datetime.datetime.now()
                 try:
-                    signal = self.requestQueue.get(True, timeout.total_seconds())
+                    signal = self.requestQueue.get(True, timeout.total_seconds()) // XXX timeout could be negative!! FIXME
                     print signal
                     try:
                         if signal["frequency"] > 0:
-                            print "Received frequency %d" % signal["frequency"]
-                            self.bps = signal["frequency"]/60
+                            freq = signal["frequency"]
+                            if isinstance(freq, basestring):
+                                freq = int(freq)
+                            print "Received frequency %d" % freq
+                            self.bps = freq/60
                             nextHeartBeatTime = 1/self.bps
                         else: # invalid frequency, reset to defaults
                             self.bps = -1
@@ -91,23 +97,31 @@ class HeartBeatSender():
                     
         def sendHeartBeat(self):
             print "Sending heart beat"
-            heartBeatData = struct.pack("BB", self.heartBeatId, self.bps*60)
+            heartBeatData = struct.pack("BBHLLf", self.heartBeatId, self.heartBeatSequenceId + 1, 1000/self.bps, 0, time.time(), self.bps*60)
+            self.heartBeatSequenceId += 1
+            if (self.heartBeatSequenceId >= 256) :
+                self.heartBeatSequenceId = 0
             self.socket.sendto(heartBeatData, (BROADCAST_ADDR, HEARTBEAT_PORT)) # haz exception XXX?
 
 # XXX utility function
-def createMulticastSender(ttl=MULTICAST_TTL):
+def createBroadcastSender(ttl=MULTICAST_TTL):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+#    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
     return sock
         
 class CommandSender():
     ''' Sends out commands on the wire '''
     def __init__(self):
         ''' Constructor. '''
-        self.socket = createMulticastSender()
+        self.socket = createBroadcastSender()
 
-    def sendCommand(self, unitId, command):
-        commandData = struct.pack("BB") # XXX for the moment, no extra data associated with command  XXX WTF IS THE COMMAND???
+    def sendCommand(self, unitId, command, data):
+        commandData = struct.pack("BBHL", unitId, self.cmdTrackingId, command_id, data) # XXX for the moment, no extra data associated with command  XXX WTF IS THE COMMAND???
+        self.cmdTrackingId += 1
+        if (self.cmdTrackingId >= 256):
+            self.cmdTrackingId = 0
         self.socket.sendto(commandData, (BROADCAST_ADDR, COMMAND_PORT))
         
         
@@ -180,7 +194,9 @@ class HeartBeatHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_response(200)
         elif self.path == "/command":
             command = postvars["command"][0]
-            commandSender.sendCommand({"command": command})
+            receiverId = postvars["receiverId"][0]
+            data       = postvars["cmdData"][0]
+            commandSender.sendCommand(command, receiverId, data)
             self.send_response(200)
         else:
             self.send_response(404)
