@@ -71,9 +71,10 @@ class HeartBeatSender():
                         if signal["frequency"] > 0:
                             freq = signal["frequency"]
                             if isinstance(freq, basestring):
-                                freq = int(freq)
+                                freq = float(freq)
                             print "Received frequency %d" % freq
                             self.bps = freq/60
+                            print "bps is %f" % self.bps
                             nextHeartBeatTime = 1/self.bps
                         else: # invalid frequency, reset to defaults
                             self.bps = -1
