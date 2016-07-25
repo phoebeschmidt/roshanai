@@ -1,16 +1,20 @@
-# Pulse Project
+# Roshanai
+
+This is forked from https://github.com/FlamingLotusGirls/pulse. We are going to add on to their serial framework in order to control the solenoids for striking various drums/shakers/blocks/etc.
+
 
 What we've got here:
 
-* BPM - Code to detect heartbeats and put the pulses out on the network<br>
 * avr - Code that runs on the 8-output relay driver boards (see eagle files in flg-svn)<br>
-* avr-proportional - code that runs on the proportional valve driver board (no eagle files ... yet)<br>
-* test-proportional - Android code for running the proportional valve driver board. Can run on any android device, requires standard FTDI USB to 485 cable to connect with board<br>
 * testApp - Android and PC code for running the 8-output relay driver board. Can run on any android device, or web interface + python can run on Mac/Linux box. Requires standard FTDI USB to 485 cable to connect with board
+
+Not in use for this project, but may have use later:
 * audio - Sketches for ALSA audio drivers, incomplete<br>
 * network - multicast listener for heartbeats, controls relay board to send heartbeat and other patterns. Python, runs on RPi and Mac (intended for RPi in the sculpture)<br>
 
-Still to do:<br>
-* LEDs. Lighting for pulse pods<br>
-* Mobile Interactive. Code for whatever games on mobile interactive unit<br>
-* Geek console. UI, controls for the geeks back at the geek table.<br>
+To do, kind of in order of importance:
+1. Read Midi files and play them.
+2. Live Midi input from a controller.
+3. Basic web interface for mapping controller to solenoids. (I'll be using a Novation Launchpad for the beginning)
+4. Recording new patterns live
+5. TouchOSC over the network
