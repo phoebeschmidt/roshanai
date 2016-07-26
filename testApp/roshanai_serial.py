@@ -15,18 +15,86 @@ if python_version.startswith('3'):
 else:
     from urlparse import parse_qs
 
+import pygame
+import pygame.midi
+from pygame.locals import *
+
 
 running = True
 signalQueue = None
 
-    
+def print_device_info():
+    pygame.midi.init()
+    _print_device_info()
+    pygame.midi.quit()
+
+def _print_device_info():
+    for i in range( pygame.midi.get_count() ):
+        r = pygame.midi.get_device_info(i)
+        (interf, name, input, output, opened) = r
+
+        in_out = ""
+        if input:
+            in_out = "(input)"
+        if output:
+            in_out = "(output)"
+
+        print ("%2i: interface :%s:, name :%s:, opened :%s:  %s" %
+               (i, interf, name, opened, in_out))
+
+def input_main(device_id = None):
+    pygame.init()
+    pygame.fastevent.init()
+    event_get = pygame.fastevent.get
+    event_post = pygame.fastevent.post
+
+    pygame.midi.init()
+
+    _print_device_info()
+
+
+    if device_id is None:
+        input_id = pygame.midi.get_default_input_id()
+    else:
+        input_id = device_id
+
+    print ("using input_id :%s:" % input_id)
+    i = pygame.midi.Input( input_id )
+
+    pygame.display.set_mode((1,1))
+
+
+
+    going = True
+    while going:
+        events = event_get()
+        for e in events:
+            if e.type in [QUIT]:
+                going = False
+            if e.type in [KEYDOWN]:
+                going = False
+            if e.type in [pygame.midi.MIDIIN]:
+                print (e)
+
+        if i.poll():
+            midi_events = i.read(10)
+            # convert them into pygame events.
+            midi_evs = pygame.midi.midis2events(midi_events, i.device_id)
+
+            for m_e in midi_evs:
+                event_post( m_e )
+
+    del i
+    pygame.midi.quit()
+
+
 class SignalSendingThread(Thread):
     def __init__(self, ser , requestQueue):
         ''' Constructor. '''
         Thread.__init__(self)
         self.serial = ser
         self.requestQueue = requestQueue
-        
+
     def run(self):
         ''' Run, until running flag is unset. Check status of flag every second '''
         global running
@@ -55,7 +123,7 @@ class SignalSendingThread(Thread):
                 # debug printf - timeout!
             if (not running):
                 break
-        
+
 
     def sendSignal(self, controller_id, signalArray):
         ''' Send timesliced signals to the serial port, one for each poofer '''
@@ -68,7 +136,7 @@ class SignalSendingThread(Thread):
             else:
                 sendString = sendString + dataString + "~"
         print sendString
-        self.serial.write(sendString.encode()) 
+        self.serial.write(sendString.encode())
 
     def sendSignals(self, controller_id, timeslice, signalArray, repeat):
         ''' Send multiple timeslices to the serial port. May repeat '''
@@ -84,17 +152,17 @@ class SignalSendingThread(Thread):
                 break;
             if not repeat:
                 break
-            elif not self.requestQueue.empty(): 
+            elif not self.requestQueue.empty():
                 break
-                
+
     def stopSignals(self):
         ''' Stop sending signals, send 'all off' command to terminate pattern'''
         sendString = "!0000."
         self.serial.write(sendString.encode())
-         
-        
-        
-      
+
+
+
+
 
 
 class PooferTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -145,17 +213,17 @@ class PooferTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.end_headers()
 #            self.wfile.write(get())
             return
-        
+
     def do_POST(self):
         global requestQueue
-        
+
         ctype, pdict = parse_header(self.headers['content-type'])
         if ctype == 'multipart/form-data':
             postvars = parse_multipart(self.rfile, pdict)
         elif ctype == 'application/x-www-form-urlencoded':
             length = int(self.headers['content-length'])
             postvars = parse_qs(
-                    self.rfile.read(length), 
+                    self.rfile.read(length),
                     keep_blank_values=1)
         else:
             postvars = {}
@@ -173,7 +241,7 @@ class PooferTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_response(200)
         else:
             self.send_response(404)
-        
+
 
 def initSerial():
     ser = serial.Serial()
@@ -184,12 +252,12 @@ def initSerial():
             port = "/dev/" + filename
             print "Found usb serial at ", port
             break;
-    
+
     if not port:
         sys.exit("No usb serial connected, aborting")
 
     ser.port = port
-    ser.timeout =0 
+    ser.timeout =0
     ser.stopbits = serial.STOPBITS_ONE
     ser.bytesize = 8
     ser.parity   = serial.PARITY_NONE
@@ -213,4 +281,3 @@ if __name__ == '__main__':
         print "Keyboard interrupt detected, terminating"
         running = False
     httpd.server_close()
-    
