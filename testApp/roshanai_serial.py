@@ -70,12 +70,16 @@ class RealTimeMidiThread(Thread):
                         onOff = 0
                     else:
                         onOff = 1
-                    board_id = int(note) / 8 # python defaults to floor division for ints
-                    relay_id = int(note) % 8
+                    board_id = noteToBoardId(note)
+                    relay_id = noteToRelayId(note)
                     print "sending signal: board:%d relay:%d onOff:%d" % (board_id, relay_id, onOff)
                     self.sendSignal(board_id, note % 8, onOff)
         del i
         pygame.midi.quit()
+    def noteToBoardId(self, note):
+        return int(note) / 8 # python defaults to floor division for ints. Every 8 notes up we move to another board
+    def noteToRelayId(self, note):
+        return int(note) % 8
 
     def sendSignal(self, board_id, relay_id, onOff):
         '''
