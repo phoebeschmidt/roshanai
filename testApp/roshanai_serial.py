@@ -290,10 +290,15 @@ def _print_device_info():
 
 def usage():
     print ("--real_time_midi [device_id] : Real time input midi mode")
-    print ("--pattern : Web based pattern player")
+    print ("--pattern : Web based pattern player. Default of the pulse version of this script")
     print ("--list : list available midi devices")
+    print ("--help : list the usage")
+
 
 if __name__ == '__main__':
+    if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) == 1:
+        usage()
+        sys.exit()
     running = True
     PORT = 8666
     try:
