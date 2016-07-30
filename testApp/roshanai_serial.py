@@ -70,8 +70,8 @@ class RealTimeMidiThread(Thread):
                         onOff = 0
                     else:
                         onOff = 1
-                    board_id = noteToBoardId(note)
-                    relay_id = noteToRelayId(note)
+                    board_id = self.noteToBoardId(note)
+                    relay_id = self.noteToRelayId(note)
                     print "sending signal: board:%d relay:%d onOff:%d" % (board_id, relay_id, onOff)
                     self.sendSignal(board_id, note % 8, onOff)
         del i
