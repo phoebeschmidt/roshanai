@@ -13,8 +13,10 @@ Not in use for this project, but may have use later:
 * network - multicast listener for heartbeats, controls relay board to send heartbeat and other patterns. Python, runs on RPi and Mac (intended for RPi in the sculpture)<br>
 
 To do, kind of in order of importance:
+
 1. Read Midi files and play them.
+1. Loop through library of midi files.
+1. Record some kind of live extended performance.
+1. Interface for managing midi files, play order, picking and launching them.
 2. Live Midi input from a controller.
 3. Basic web interface for mapping controller to solenoids. (I'll be using a Novation Launchpad for the beginning)
-4. Recording new patterns live
-5. TouchOSC over the network
