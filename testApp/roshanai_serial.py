@@ -14,85 +14,97 @@ if python_version.startswith('3'):
     from urllib.parse import parse_qs
 else:
     from urlparse import parse_qs
-
-import pygame
-import pygame.midi
-from pygame.locals import *
-
-
+import time
+from rtmidi import *
 running = True
 signalQueue = None
 
-def print_device_info():
-    pygame.midi.init()
-    _print_device_info()
-    pygame.midi.quit()
+# These are defined in rtmidi, this provides multi platform support for different operating systems.
+# Always use api 0 (default) or 1 (API_MACOSX_CORE:  "OS X CoreMIDI") on Mac
+# ex. MidiIn(1), MidiIn(0)
+apis = {
+    API_MACOSX_CORE:  "OS X CoreMIDI",
+    API_LINUX_ALSA:   "Linux ALSA",
+    API_UNIX_JACK:    "Jack Client",
+    API_WINDOWS_MM:   "Windows MultiMedia",
+    API_RTMIDI_DUMMY: "RtMidi Dummy"
+}
+
+available_apis = get_compiled_api()
+
 
 class RealTimeMidiThread(Thread):
-    def __init__(self, ser, input_id):
+    def __init__(self, ser, input_id, programs):
         Thread.__init__(self)
         self.serial = ser
         self.input_id = input_id
+        self.programs = programs
+        self.current_program = programs[0]
 
     def run(self):
-        pygame.init()
-        pygame.fastevent.init()
-        pygame.midi.init()
+        timer = time.time()
 
-        _print_device_info()
+        print_device_info()
+        midi_in = MidiIn(0)
 
-        if self.input_id is None:
-            input_id = pygame.midi.get_default_input_id()
-        else:
-            input_id = self.input_id
+        if self.input_id is None and len(midi_in.get_ports) > 0:
+            self.input_id = 0
 
-        print ("using input_id :%s:" % input_id)
-        i = pygame.midi.Input(input_id)
-
-        pygame.display.set_mode((1,1))
-
+        print ("using input_id :%s:" % self.input_id)
+        midi_in.open_port(self.input_id)
+        port_name = midi_in.get_port_name(self.input_id)
         global running
         while True:
             if (not running):
+                print "Thread finished running"
                 break
+            while True:
+                msg = midi_in.get_message()
 
-            pygame.fastevent.pump() # this needs to be done in order for pygame to not freeze up
-            if i.poll():
-                midi_events = i.read(10)
-                # convert them into pygame events.
-                midi_evs = pygame.midi.midis2events(midi_events, i.device_id)
+                if msg:
+                    message, deltatime = msg
+                    timer += deltatime
+                    status = message[0] & 0xf0 # bit mask for the status message so we ignore channel number
+                    if status == 0x90: # Note on
+                        note = message[1]
+                        velocity = message[2]
+                        if velocity == 0:
+                            self.sendSignal(note, 0) # note on with velocity 0 is a note off
+                        else:
+                            self.sendSignal(note, 1) # note on
+                    if status == 0x80: # Note off
+                        note = message[1]
+                        self.sendSignal(note, 0)
+                    if status == 0xc0: # Program change
+                        program = message[1]
+                        self.change_program(program)
+                    print("[%s] @%0.6f %r" % (port_name, timer, message))
 
-                for m_e in midi_evs:
-                    print m_e
-                    note = m_e.data1
-                    velocity = m_e.data2
-                    if m_e.data2 == 0:
-                        onOff = 0
-                    else:
-                        onOff = 1
-                    board_id = noteToBoardId(note)
-                    relay_id = noteToRelayId(note)
-                    print "sending signal: board:%d relay:%d onOff:%d" % (board_id, relay_id, onOff)
-                    self.sendSignal(board_id, note % 8, onOff)
-        del i
-        pygame.midi.quit()
-    def noteToBoardId(self, note):
-        return int(note) / 8 # python defaults to floor division for ints. Every 8 notes up we move to another board
-    def noteToRelayId(self, note):
-        return int(note) % 8
+    def change_program(self, program_index):
+        self.current_program = self.programs[program_index]
 
-    def sendSignal(self, board_id, relay_id, onOff):
+    def sendSignal(self, midi_note, onOff):
         '''
         controller_id - int
-        number - int 0-7 for the specific relay to fire
+        midi_note -
         onOff - 0 or 1
         '''
+        try:
+            board_id, relay_id = self.current_program[midi_note]
+        except:
+            board_id = (int(midi_note) / 8) + 1 # python defaults to floor division for ints. Every 8 notes up we move to another board
+            relay_id = (int(midi_note) % 8) + 1
+
         sendString = "!%02d" % board_id
         dataString = "%i%s" % (relay_id, onOff)
         sendString = sendString + dataString + "." # "." means end of command. "~" means you can send multiple
         print sendString
         self.serial.write(sendString.encode())
 
+    def stopSignals(self):
+        ''' Stop sending signals, send 'all off' command to terminate pattern'''
+        sendString = "!0000."
+        self.serial.write(sendString.encode())
 
 class SignalSendingThread(Thread):
     def __init__(self, ser, requestQueue):
@@ -269,24 +281,25 @@ def initSerial():
     ser.open()
     return ser
 
-def print_device_info():
-    pygame.midi.init()
-    _print_device_info()
-    pygame.midi.quit()
 
-def _print_device_info():
-    for i in range( pygame.midi.get_count() ):
-        r = pygame.midi.get_device_info(i)
-        (interf, name, input_val, output_val, opened) = r
-
-        in_out = ""
-        if input_val:
-            in_out = "(input)"
-        if output_val:
-            in_out = "(output)"
-
-        print ("%2i: interface :%s:, name :%s:, opened :%s:  %s" %
-               (i, interf, name, opened, in_out))
+def print_device_info(api=0):
+    for api, api_name in sorted(apis.items()):
+        if api in available_apis:
+            for name, class_ in (("input", MidiIn), ("output", MidiOut)):
+                try:
+                    midi = class_(api)
+                    ports = midi.get_ports()
+                except StandardError as exc:
+                    print("Could not probe MIDI %s ports: %s" % (name, exc))
+                    continue
+                if not ports:
+                    print("No MIDI %s ports found." % name)
+                else:
+                    print("Available MIDI %s ports:\n" % name)
+                    for port, name in enumerate(ports):
+                        print("[%i] %s" % (port, name))
+                print('')
+                del midi
 
 def usage():
     print ("--real_time_midi [device_id] : Real time input midi mode")
@@ -299,6 +312,9 @@ if __name__ == '__main__':
     if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) == 1:
         usage()
         sys.exit()
+    elif "--list" in sys.argv or "-l" in sys.argv:
+        print_device_info()
+
     running = True
     PORT = 8666
     try:
@@ -307,8 +323,8 @@ if __name__ == '__main__':
         device_id = None
     ser = initSerial()
     if "--real_time_midi" in sys.argv or "-m" in sys.argv:
-
-        real_time_midi_thread = RealTimeMidiThread(ser, device_id)
+        test_programs = [{0:(0,0)}] # this is only for testing now, we need to create real programs
+        real_time_midi_thread = RealTimeMidiThread(ser, device_id, test_programs)
         real_time_midi_thread.start()
         try:
             while True:
@@ -316,8 +332,6 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print "Keyboard interrupt detected, terminating"
             running = False
-    elif "--list" in sys.argv or "-l" in sys.argv:
-        print_device_info()
     elif "--pattern" in sys.argv or "-p" in sys.argv:
         signalQueue = Queue.Queue()
         signalProcessingThread = SignalSendingThread(ser, signalQueue)
