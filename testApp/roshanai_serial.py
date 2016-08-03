@@ -4,32 +4,12 @@ import serial
 import os
 import Queue
 import sys
-# from sys import version as python_version
-# if python_version.startswith('3'):
-#     from urllib.parse import parse_qs
-# else:
-#     from urlparse import parse_qs
-# import time
-from rtmidi import *
-import realTimeMidiThread as RealTimeMidiThread
-import whackerTesterHttpHandler as WhackerTesterHttpHandler
-import signalSendingThread as SignalSendingThread
+import BaseHTTPServer
+from realTimeMidiThread import *
+from whackerTesterHttpHandler import WhackerTesterHttpHandler
+from signalSendingThread import SignalSendingThread
 
-running = True
 signalQueue = None
-
-# These are defined in rtmidi, this provides multi platform support for different operating systems.
-# Always use api 0 (default) or 1 (API_MACOSX_CORE:  "OS X CoreMIDI") on Mac
-# ex. MidiIn(1), MidiIn(0)
-apis = {
-    API_MACOSX_CORE:  "OS X CoreMIDI",
-    API_LINUX_ALSA:   "Linux ALSA",
-    API_UNIX_JACK:    "Jack Client",
-    API_WINDOWS_MM:   "Windows MultiMedia",
-    API_RTMIDI_DUMMY: "RtMidi Dummy"
-}
-
-available_apis = get_compiled_api()
 
 
 def initSerial():
@@ -54,26 +34,6 @@ def initSerial():
     ser.open()
     return ser
 
-
-def print_device_info(api=0):
-    for api, api_name in sorted(apis.items()):
-        if api in available_apis:
-            for name, class_ in (("input", MidiIn), ("output", MidiOut)):
-                try:
-                    midi = class_(api)
-                    ports = midi.get_ports()
-                except StandardError as exc:
-                    print("Could not probe MIDI %s ports: %s" % (name, exc))
-                    continue
-                if not ports:
-                    print("No MIDI %s ports found." % name)
-                else:
-                    print("Available MIDI %s ports:\n" % name)
-                    for port, name in enumerate(ports):
-                        print("[%i] %s" % (port, name))
-                print('')
-                del midi
-
 def usage():
     print ("--real_time_midi [device_id] : Real time input midi mode")
     print ("--pattern : Web based pattern player. Default of the pulse version of this script")
@@ -88,7 +48,6 @@ if __name__ == '__main__':
     elif "--list" in sys.argv or "-l" in sys.argv:
         print_device_info()
 
-    running = True
     PORT = 8666
     try:
         device_id = int( sys.argv[-1] )
@@ -104,7 +63,8 @@ if __name__ == '__main__':
                 continue
         except KeyboardInterrupt:
             print "Keyboard interrupt detected, terminating"
-            running = False
+        finally:
+            real_time_midi_thread.stop()
     elif "--pattern" in sys.argv or "-p" in sys.argv:
         signalQueue = Queue.Queue()
         signalProcessingThread = SignalSendingThread(ser, signalQueue)
@@ -114,7 +74,8 @@ if __name__ == '__main__':
             httpd.serve_forever()
         except KeyboardInterrupt:
             print "Keyboard interrupt detected, terminating"
-            running = False
-        httpd.server_close()
+        finally:
+            signalProcessingThread.stop()
+            httpd.server_close()
     else:
         usage()

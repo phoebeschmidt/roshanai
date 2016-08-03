@@ -2,7 +2,7 @@ import Queue
 import json
 from cgi import parse_header, parse_multipart
 import time
-from threading import Thread
+from stoppableThread import StoppableThread
 from sys import version as python_version
 if python_version.startswith('3'):
     from urllib.parse import parse_qs
@@ -10,16 +10,15 @@ else:
     from urlparse import parse_qs
 
 
-class SignalSendingThread(Thread):
+class SignalSendingThread(StoppableThread):
     def __init__(self, ser, requestQueue):
         ''' Constructor. '''
-        Thread.__init__(self)
+        StoppableThread.__init__(self)
         self.serial = ser
         self.requestQueue = requestQueue
 
     def run(self):
         ''' Run, until running flag is unset. Check status of flag every second '''
-        global running
         timeout = 1.0
         while True:
             # block until there's something to do
@@ -43,7 +42,7 @@ class SignalSendingThread(Thread):
             except Queue.Empty:
                 pass
                 # debug printf - timeout!
-            if (not running):
+            if (not self.running):
                 break
 
 

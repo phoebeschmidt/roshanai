@@ -1,9 +1,42 @@
-from threading import Thread
+from stoppableThread import StoppableThread
 import time
+from rtmidi import *
 
-class RealTimeMidiThread(Thread):
+# These are defined in rtmidi, this provides multi platform support for different operating systems.
+# Always use api 0 (default) or 1 (API_MACOSX_CORE:  "OS X CoreMIDI") on Mac
+# ex. MidiIn(1), MidiIn(0)
+apis = {
+    API_MACOSX_CORE:  "OS X CoreMIDI",
+    API_LINUX_ALSA:   "Linux ALSA",
+    API_UNIX_JACK:    "Jack Client",
+    API_WINDOWS_MM:   "Windows MultiMedia",
+    API_RTMIDI_DUMMY: "RtMidi Dummy"
+}
+
+available_apis = get_compiled_api()
+
+def print_device_info(api=0):
+    for api, api_name in sorted(apis.items()):
+        if api in available_apis:
+            for name, class_ in (("input", MidiIn), ("output", MidiOut)):
+                try:
+                    midi = class_(api)
+                    ports = midi.get_ports()
+                except StandardError as exc:
+                    print("Could not probe MIDI %s ports: %s" % (name, exc))
+                    continue
+                if not ports:
+                    print("No MIDI %s ports found." % name)
+                else:
+                    print("Available MIDI %s ports:\n" % name)
+                    for port, name in enumerate(ports):
+                        print("[%i] %s" % (port, name))
+                print('')
+                del midi
+
+class RealTimeMidiThread(StoppableThread):
     def __init__(self, ser, input_id, programs):
-        Thread.__init__(self)
+        StoppableThread.__init__(self)
         self.serial = ser
         self.input_id = input_id
         self.programs = programs
@@ -21,12 +54,11 @@ class RealTimeMidiThread(Thread):
         print ("using input_id :%s:" % self.input_id)
         midi_in.open_port(self.input_id)
         port_name = midi_in.get_port_name(self.input_id)
-        global running
         while True:
-            if (not running):
+            if (not self.running):
                 print "Thread finished running"
                 break
-            while True:
+            else:
                 msg = midi_in.get_message()
 
                 if msg:
@@ -67,7 +99,7 @@ class RealTimeMidiThread(Thread):
         dataString = "%i%s" % (relay_id, onOff)
         sendString = sendString + dataString + "." # "." means end of command. "~" means you can send multiple
         print sendString
-        self.serial.write(sendString.encode())
+        # self.serial.write(sendString.encode())
 
     def stopSignals(self):
         ''' Stop sending signals, send 'all off' command to terminate pattern'''
