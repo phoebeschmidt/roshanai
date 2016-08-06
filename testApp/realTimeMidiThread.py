@@ -99,7 +99,7 @@ class RealTimeMidiThread(StoppableThread):
         dataString = "%i%s" % (relay_id, onOff)
         sendString = sendString + dataString + "." # "." means end of command. "~" means you can send multiple
         print sendString
-        # self.serial.write(sendString.encode())
+        self.serial.write(sendString.encode())
 
     def stopSignals(self):
         ''' Stop sending signals, send 'all off' command to terminate pattern'''

@@ -11,8 +11,15 @@ from signalSendingThread import SignalSendingThread
 
 signalQueue = None
 
+class FakeSerial:
+    def write(self, input):
+        print input
 
+
+FAKE_SERIAL=False
 def initSerial():
+    if FAKE_SERIAL:
+        return FakeSerial()
     ser = serial.Serial()
     ser.baudrate = 19200
     port = False
@@ -47,6 +54,8 @@ if __name__ == '__main__':
         sys.exit()
     elif "--list" in sys.argv or "-l" in sys.argv:
         print_device_info()
+    if "--fake_serial" in sys.argv or "-f" in sys.argv:
+        FAKE_SERIAL = True
 
     PORT = 8666
     try:
