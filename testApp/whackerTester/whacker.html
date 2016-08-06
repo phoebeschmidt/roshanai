@@ -4,7 +4,7 @@
 <head></head>
 <style type="text/css">
 .poofercell, .pooferheader{
-    width: 100px; 
+    width: 100px;
     height:20px;
     border: 1px solid black;
     border-collapse: collapse;
@@ -65,7 +65,7 @@ Repeat <input id="repeat" type="checkbox">
 </tr>
 </table>
 </body>
-<script type="text/javascript" src="jquery-1.4.3.min.js"></script>
+<script type="text/javascript" src="/jquery-1.4.3.min.js"></script>
 <script type="text/javascript">
 
 var pooferCellHtml = "<tr><td class=\"inactive poofercell\"></td>\
@@ -80,7 +80,7 @@ var pooferCellHtml = "<tr><td class=\"inactive poofercell\"></td>\
        <input type=\"button\" value=\"Insert Row\" onclick=\"insertRow(this)\">\
        <input type=\"button\" value=\"Delete Row\" onclick=\"deleteRow(this)\">\
     </td><tr>";
-    
+
 var speed = $("#ms_per_row").val();
 
 
@@ -98,16 +98,16 @@ $(document).delegate(".poofercell", "click", function() {
 function insertRow(elem)
 {
     // insert row into dom after current row
-    $(elem).parents("tr").after(pooferCellHtml); 
+    $(elem).parents("tr").after(pooferCellHtml);
 }
 
 function deleteRow(elem)
 {
-    // remove current row 
+    // remove current row
     $(elem).parents("tr").remove();
 }
 
-function setSpeed(elem) 
+function setSpeed(elem)
 {
     var intSpeed = parseInt(elem.value, 10);
     if (isNaN(intSpeed)) {
@@ -116,7 +116,7 @@ function setSpeed(elem)
         $("#ms_per_row").val(intSpeed);
         speed = intSpeed;
     }
-    
+
     return true;
 }
 
@@ -135,19 +135,19 @@ function toggleCellState()
 
 function submitPattern()
 {
-    // timeslice.... row... 
+    // timeslice.... row...
     var pattern = {};
     pattern["repeat"] = $("#repeat").is(":checked");
     pattern["timeslice"] = $("#ms_per_row").val();
     pattern["boardId"] = 0; // for the moment.. will add way of changing
-    
+
     // now collect the rows...
     var patternRows = [];
     var rows = $("#pattern_table tr");
     var nRows = rows.length;
     for (var j=0; j<nRows; j++) {
         var row = $(rows[j]);
-        var columns = row.children('td'); 
+        var columns = row.children('td');
         var patternColumn = []
         var nColumns = columns.length;
         for (var i=0; i<nColumns; i++) {
@@ -162,10 +162,10 @@ function submitPattern()
         }
     }
     pattern["signals"] = patternRows;
-    
+
     console.log(JSON.stringify(pattern));
-    
-    
+
+
     $.post("sendsignals",
         { "pattern": JSON.stringify(pattern)
         },
@@ -173,19 +173,19 @@ function submitPattern()
                 console.log("Pattern sent to serial");
           }
         );
-    
+
 }
 
 
 function stopPattern()
 {
-    $.post("stopsignals", 
+    $.post("stopsignals",
         {"dummy": "dummy"
         },
         function success() {
             console.log("Stop command sent to serial");
         }
-    );    
+    );
 }
 </script>
 </html>

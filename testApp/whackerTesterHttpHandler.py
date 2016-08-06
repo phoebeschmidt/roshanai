@@ -1,6 +1,6 @@
 import BaseHTTPServer
 import os
-relativePath = 'whackerTester'
+# relativePath = 'whackerTester'
 class WhackerTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
         # if self.path.endswith(".png"):
@@ -28,7 +28,7 @@ class WhackerTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         #         f.close()
         #         return
         if self.path.endswith(".html"):
-                f=open(relativePath + self.path, "rb")
+                f=open("." + self.path, "rb")
                 self.send_response(200)
                 self.send_header('Content-type','text/html')
                 self.end_headers()
@@ -47,5 +47,5 @@ class WhackerTesterHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_response(404)
             self.send_header('Content-type','text/html')
             self.end_headers()
-            self.wfile.write(get())
+            # self.wfile.write(get())
             return
