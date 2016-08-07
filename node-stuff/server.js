@@ -5,9 +5,9 @@ var bodyParser = require('body-parser');
 var app = express();
 app.use(express.static(__dirname + '/public'));
 app.use(bodyParser.json())
-var idMapper = require('./services/idMapper.js')();
+var idMapperService = require('./services/idMapperService.js')();
 
-var routes = require('./routes/router.js')(app, idMapper);
+var routes = require('./routes/router.js')(app, idMapperService);
 
 app.listen(3000, function () {
     console.log("Listening on port 3000");

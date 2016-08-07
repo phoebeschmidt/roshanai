@@ -1,25 +1,25 @@
 'use strict'
 var express = require('express');
-var router = function(app, idMapper) {
+var router = function(app, idMapperService) {
   app.get('/hello', (req, res) => {
     res.send('hello there!!!!');
   });
 
   app.get('/solenoids/addresses', (req, res) => {
-    idMapper.getMappings().then(
+    idMapperService.getMappings().then(
       (data) => { res.send(data); },
       (err) => { res.sendStatus(400).send({Error: err}); }
     )
   });
 
   app.get('/solenoids/:id/address', (req, res) => {
-    res.json(idMapper.getMapping(req.params.id));
+    res.json(idMapperService.getMapping(req.params.id));
   });
 
   app.post('/solenoids/:id/address', (req, res) => {
     var newAddr = req.body.address;
     if (newAddr) {
-      var result = idMapper.updateMapping(req.params.id, newAddr);
+      var result = idMapperService.updateMapping(req.params.id, newAddr);
       result.then(
         () => {
           res.sendStatus(200)
