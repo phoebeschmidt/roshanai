@@ -4,29 +4,36 @@
   justify-content: space-around;
 }
 
-/*.roshanai_img {
+.roshanai_img {
   max-height: 650px;
-}*/
+}
 
-/*.small-img {
+.small-img {
   max-height: 10px;
   max-width: 10px;
   padding-top: 18px;
-}*/
+  padding-right: 10px;
+}
 
 .solenoid {
-  display: flex;
-  flex-direction: row;
-  /*max-width: 50px;*/
+  max-width: 200px;
 }
 
-.solenoid-input {
-  display: flex;
-  flex-direction: row;
+.form-conrol:invalid {
+  color: red;
 }
-
-.solonoid-icons {
+.solenoid-icons {
   padding-top: 75px;
   display: flex;
   flex-direction: column;
+}
+
+.solenoid-icon {
+  display: flex;
+  flex-direction: row;
+}
+
+
+.black-line {
+  background-color: black;
 }
