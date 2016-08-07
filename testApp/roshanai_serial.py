@@ -5,9 +5,10 @@ import os
 import Queue
 import sys
 import BaseHTTPServer
-from realTimeMidiThread import *
-from whackerTesterHttpHandler import WhackerTesterHttpHandler
+from liveMidi.realTimeMidiThread import *
+from whackerTester.whackerTesterHttpHandler import WhackerTesterHttpHandler
 from signalSendingThread import SignalSendingThread
+from idMap.IdMapperHttpHandler import IdMapperHttpHandler
 
 signalQueue = None
 
@@ -62,7 +63,8 @@ if __name__ == '__main__':
         device_id = int( sys.argv[-1] )
     except:
         device_id = None
-    ser = initSerial()
+    # ser = initSerial()
+    ser = None
     if "--real_time_midi" in sys.argv or "-m" in sys.argv:
         test_programs = [{0:(0,0)}] # this is only for testing now, we need to create real programs
         real_time_midi_thread = RealTimeMidiThread(ser, device_id, test_programs)
@@ -86,5 +88,13 @@ if __name__ == '__main__':
         finally:
             signalProcessingThread.stop()
             httpd.server_close()
+    elif '--mappings' in sys.argv:
+        httpd = BaseHTTPServer.HTTPServer(("localhost", PORT), IdMapperHttpHandler)
+        try:
+            httpd.serve_forever();
+        except KeyboardInterrupt:
+            print "Keyboard interrupt detected, terminating"
+        finally:
+            httpd.server_close();
     else:
         usage()

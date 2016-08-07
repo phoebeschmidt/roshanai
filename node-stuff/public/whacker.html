@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <h1><center>Roshanai Control Center Very Important</center></h1>
+  <script type="text/javascript" src="./js/jquery-1.4.3.min.js"></script>
+</head>
+<style type="text/css">
+.poofercell, .pooferheader{
+    width: 100px;
+    height:20px;
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+.administrative {
+    width: 200px;
+    height: 20px;
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+.inactive {background-color: #ffffff;}
+.active {background-color: #ff0000;}
+#pattern_table {
+   border: 1px solid black;
+   border-collapse: collapse;
+}
+
+
+</style>
+<body>
+  <nav>
+    <ul>
+      <li><a href='./idMapper.html'>Map Solenoid IDs</a></li>
+      <li><a herf='./whacker.html'> Whacker Tester</a><li>
+    </ul>
+  </nav>
+Speed (Milliseconds per row) <input type="text" value="1000" id="ms_per_row" onchange="setSpeed(this)">
+<br>
+Repeat <input id="repeat" type="checkbox">
+<br>
+<br>
+<input type="button" value="Submit Pattern" onclick="submitPattern()">
+<br>
+<br>
+<input type="button" value="Stop Pattern" onclick="stopPattern()">
+<br>
+<br>
+
+
+<table id="pattern_table">
+<tr>
+<th class="pooferheader"> Channel 1 </th>
+<th class="pooferheader"> Channel 2 </th>
+<th class="pooferheader"> Channel 3 </th>
+<th class="pooferheader"> Channel 4 </th>
+<th class="pooferheader"> Channel 5 </th>
+<th class="pooferheader"> Channel 6 </th>
+<th class="pooferheader"> Channel 7 </th>
+<th class="pooferheader"> Channel 8 </th>
+<th class="administrative"> Functions</th>
+</tr>
+<tr>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="inactive poofercell"></td>
+    <td class="administrative">
+       <input type="button" value="Insert Row" onclick="insertRow(this)">
+    </td>
+</tr>
+</table>
+</body>
+<script type="text/javascript">
+
+var pooferCellHtml = "<tr><td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"inactive poofercell\"></td>\
+    <td class=\"administrative\">\
+       <input type=\"button\" value=\"Insert Row\" onclick=\"insertRow(this)\">\
+       <input type=\"button\" value=\"Delete Row\" onclick=\"deleteRow(this)\">\
+    </td><tr>";
+
+var speed = $("#ms_per_row").val();
+
+
+// Toggle cell state on click...
+$(document).delegate(".poofercell", "click", function() {
+    if ($(this).hasClass("inactive")) {
+        $(this).removeClass("inactive");
+        $(this).addClass("active");
+    } else {
+        $(this).removeClass("active");
+        $(this).addClass("inactive");
+    }
+});
+
+function insertRow(elem)
+{
+    // insert row into dom after current row
+    $(elem).parents("tr").after(pooferCellHtml);
+}
+
+function deleteRow(elem)
+{
+    // remove current row
+    $(elem).parents("tr").remove();
+}
+
+function setSpeed(elem)
+{
+    var intSpeed = parseInt(elem.value, 10);
+    if (isNaN(intSpeed)) {
+        $("#ms_per_row").val(speed);
+    } else {
+        $("#ms_per_row").val(intSpeed);
+        speed = intSpeed;
+    }
+
+    return true;
+}
+
+function toggleCellState()
+{
+    if ($(this).hasClass("inactive")) {
+        $(this).removeClass("inactive");
+        $(this).addClass("active");
+    } else {
+        $(this).removeClass("active");
+        $(this).addClass("inactive");
+    }
+}
+
+
+
+function submitPattern()
+{
+    // timeslice.... row...
+    var pattern = {};
+    pattern["repeat"] = $("#repeat").is(":checked");
+    pattern["timeslice"] = $("#ms_per_row").val();
+    pattern["boardId"] = 0; // for the moment.. will add way of changing
+
+    // now collect the rows...
+    var patternRows = [];
+    var rows = $("#pattern_table tr");
+    var nRows = rows.length;
+    for (var j=0; j<nRows; j++) {
+        var row = $(rows[j]);
+        var columns = row.children('td');
+        var patternColumn = []
+        var nColumns = columns.length;
+        for (var i=0; i<nColumns; i++) {
+            var column = $(columns[i]);
+            // only grab the ones that actually have data
+            if (column.hasClass("active") || column.hasClass("inactive")) {
+                patternColumn.push(column.hasClass("active") ? "1":"0");
+            }
+        }
+        if (patternColumn.length > 0) {
+            patternRows.push(patternColumn);
+        }
+    }
+    pattern["signals"] = patternRows;
+
+    console.log(JSON.stringify(pattern));
+
+
+    $.post("sendsignals",
+        { "pattern": JSON.stringify(pattern)
+        },
+          function success(){
+                console.log("Pattern sent to serial");
+          }
+        );
+
+}
+
+
+function stopPattern()
+{
+    $.post("stopsignals",
+        {"dummy": "dummy"
+        },
+        function success() {
+            console.log("Stop command sent to serial");
+        }
+    );
+}
+</script>
+</html>

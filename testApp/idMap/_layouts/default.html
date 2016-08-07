@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{% if page.title  %} {{page.title}} | {% endif %} Roshanai Id Mapping</title>
+  <link rel="stylesheet" type="text/css" href="mappers.css">
+  <script type="text/javascript" src="jquery-1.4.3.min.js"></script>
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href='/idMap/idMapper.html'>Map Solenoid IDs</a></li>
+    </ul>
+  </nav>
+  {{ content }}
+</body>
+</html>

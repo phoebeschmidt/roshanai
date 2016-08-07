@@ -1,0 +1,39 @@
+.roshanai_diagram {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.roshanai_img {
+  max-height: 650px;
+}
+
+.small-img {
+  max-height: 10px;
+  max-width: 10px;
+  padding-top: 18px;
+  padding-right: 10px;
+}
+
+.solenoid {
+  max-width: 200px;
+}
+
+.form-conrol:invalid {
+  color: red;
+}
+.solenoid-icons {
+  padding-top: 75px;
+  display: flex;
+  flex-direction: column;
+}
+
+.solenoid-icon {
+  display: flex;
+  flex-direction: row;
+}
+
+
+.black-line {
+  background-color: black;
+}
