@@ -1,5 +1,5 @@
-var webpack = require('webpack');  
-module.exports = {  
+var webpack = require('webpack');
+module.exports = {
   entry: [
     "./js/app.js"
   ],
@@ -16,6 +16,14 @@ module.exports = {
           presets: ['es2015', 'react']
         },
         exclude: /node_modules/
+      },
+      {
+        test: /\.css$/,
+        loader: "css-loader"
+      },
+      {
+        test: /\.(png|jpg)$/,
+        loader: 'url-loader?limit=8192'
       }
     ]
   },

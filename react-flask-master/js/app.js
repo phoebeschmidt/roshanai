@@ -1,6 +1,5 @@
-import Hello from './Hello';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import IdAddressMapping from './ids/IdAddressMapping';
 
-ReactDOM.render(<Hello/>, document.getElementById('reactEntry'));
-
+ReactDOM.render(<IdAddressMapping/>, document.getElementById('reactEntry'));

@@ -1,0 +1,32 @@
+.roshanai_diagram {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+/*.roshanai_img {
+  max-height: 650px;
+}*/
+
+/*.small-img {
+  max-height: 10px;
+  max-width: 10px;
+  padding-top: 18px;
+}*/
+
+.solenoid {
+  display: flex;
+  flex-direction: row;
+  /*max-width: 50px;*/
+}
+
+.solenoid-input {
+  display: flex;
+  flex-direction: row;
+}
+
+.solonoid-icons {
+  padding-top: 75px;
+  display: flex;
+  flex-direction: column;
+}
