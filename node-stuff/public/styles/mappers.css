@@ -1,11 +1,17 @@
 .roshanai_diagram {
   display: flex;
   flex-direction: row;
-  justify-content: space-around;
+  justify-content: space-between;
+
+  flex-grow: 2;
+
 }
 
+li {
+  display: inline;
+}
 .roshanai_img {
-  max-height: 650px;
+  max-height: 800px;
 }
 
 .small-img {
@@ -23,7 +29,6 @@
   color: red;
 }
 .solenoid-icons {
-  padding-top: 75px;
   display: flex;
   flex-direction: column;
 }
@@ -36,4 +41,59 @@
 
 .black-line {
   background-color: black;
+}
+
+.main-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.top-button-bar {
+  flex-grow: 1;
+}
+
+.mapping-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  flex-grow: 3;
+}
+
+#midi-note-entry {
+  /*flex-grow: 1;*/
+  /*flex-shrink: 2;*/
+  max-width: 200px;
+}
+
+#solenoid-list-entry {
+  /*flex-grow: 1;*/
+  /*flex-shrink: 2;*/
+  max-width: 300px;
+}
+
+.radio-buttons {
+  padding-left: 40px;
+  flex-grow: 2;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.top-button-bar {
+  display: flex;
+  flex-direction: row;
+  /*align-content: center;*/
+  /*justify-content: space-around;*/
+}
+
+.launchpad-diagram {
+  max-height: 600px;
+}
+
+.roshanai {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
 }

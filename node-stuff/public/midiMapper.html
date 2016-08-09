@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <h1><center>Roshanai Control Center Very Important</center></h1>
+  <link rel="stylesheet" type="text/css" href="./styles/mappers.css">
+  <script type="text/javascript" src="./js/jquery-1.4.3.min.js"></script>
+  <!-- <script type="text/javascript" src="./js/idMapper.js"></script> -->
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <style>
+    table.launchpad{border:2px solid grey;  padding:10px; border-collapse:separate; border-spacing:7px 7px; border-radius:10px;page-break-inside:avoid }
+
+    table.launchpad tr td{color:#CCC; vertical-align:top; vertical-align:middle; border:0px solid #333; width:25px; height:25px; text-align:center}
+    table.launchpad tr td{background-color:#888; border-radius:5px; background:radial-gradient(ellipse at center, #888 12%,#777 99%);}
+
+    table.launchpad tr td.green{color:#666; background: #00aa00; background:radial-gradient(ellipse at center, #77cc33 12%,#669933 99%);}
+    table.launchpad tr td.red{color:#666; background: #ff4444; background:radial-gradient(ellipse at center, #ff4444 12%,#bb3333 99%);}
+    table.launchpad tr td.amber{color:#666; background: #ffA544; background:radial-gradient(ellipse at center, #ffA544 12%,#aa7744 99%);}
+
+    table.launchpad tr td.side{border:1px solid #333; border-radius:60px; }
+    table.launchpad tr.top td{border:1px solid #333; border-radius:60px; }
+
+    div.note{padding:2px; text-align:left; color:#CCC; position:absolute; width:140px; height:45px; font-size:12px; margin-left:65px; margin-top:-14px; border:1px solid #666; background-color:rgba(127,127,127,0.5); border-radius:5px;}
+    div.noteTop{padding:2px; text-align:left; color:#CCC; float:top; position:absolute; width:50px; font-size:12px; margin-left:0px; margin-top:-85px; height:60px; border:1px solid #666; background-color:rgba(127,127,127,0.5); border-radius:5px;}
+
+
+  </style>
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href='whacker.html'>Whacker Tester</a><li>
+      <li><a href='idMapper.html'>Map Solenoid IDs</a></li>
+      <li><a href='midiMapper.html'>Map Midi Notes</a></li>
+    </ul>
+  </nav>
+  <div class="main-section">
+    <div class="top-button-bar"><button>New Mapping</button><button>Edit Mapping</button></div>
+    <div class="mapping-buttons form-inline">
+      <div id="midi-note-entry form-group">
+        <label>Midi Note: </label>
+        <input type="text" class="form-control" aria-describedby="sizing-addon3">
+      </div>
+      <div id="solenoid-list-entry form-group">
+        <label>Solenoid List:</label>
+        <input type="text" class="form-control" aria-describedby="sizing-addon3">
+      </div>
+      <div class="radio-buttons">
+          <label>
+            <input type="radio" name="pattenTypeRadios" id="type-sequence" value="sequence">
+            Sequence
+          </label>
+          <label>
+            <input type="radio" name="pattenTypeRadios" id="type-simultaneous" value="simultaneous">Simultaneous
+          </label>
+      </div>
+    </div>
+    <div class="roshanai_diagram">
+      <!-- <table class="mapped-notes table table-condensed" border="1">
+        <tr><th></th>
+        <th>Note</th>
+        <th>Solenoids</th>
+        <th>Sequence/Simultaneous</th></tr>
+        <tbody>
+        </tbody>
+      </table> -->
+      <div class="launchpad-diagram">
+        <table class="launchpad">
+          <tbody><tr class="top">
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+            <td class="green"></td>
+          </tr>
+
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+          <tr>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+            <tr><td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="green">&nbsp;</td>
+            <td class="side green"></td>
+          </tr>
+        </tbody></table>
+      </div>
+      <div class="roshanai">
+        <div class="solenoid-icons">
+            <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">1<span class="glyphicon glyphicon-heart " id="1"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">2<span class="glyphicon glyphicon-heart " id="2"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bell" aria-label="Left Align">3<span class="glyphicon glyphicon-heart " id="3"></span></button><div class="btn btn-xs">Bell</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs xs-block" aria-label="Left Align">4<span class="glyphicon glyphicon-heart " id="4"></span></button><div class="btn btn-xs">XS Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs s-block" aria-label="Left Align">5<span class="glyphicon glyphicon-heart " id="5"></span></button><div class="btn btn-xs">S Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">6<span class="glyphicon glyphicon-heart " id="6"></span></button><div class="btn btn-xs">Daf</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">7<span class="glyphicon glyphicon-heart " id="7"></span></button><div class="btn btn-xs">Daf</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">8<span class="glyphicon glyphicon-heart " id="8"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">9<span class="glyphicon glyphicon-heart " id="9"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs m-block" aria-label="Left Align">10<span class="glyphicon glyphicon-heart " id="10"></span></button><div class="btn btn-xs">M Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs l-block" aria-label="Left Align">11<span class="glyphicon glyphicon-heart " id="11"></span></button><div class="btn btn-xs">L Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs xl-block" aria-label="Left Align">12<span class="glyphicon glyphicon-heart " id="12"></span></button><div class="btn btn-xs">XL Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">13<span class="glyphicon glyphicon-heart " id="13"></span></button><div class="btn btn-xs">Small Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">14<span class="glyphicon glyphicon-heart " id="14"></span></button><div class="btn btn-xs">Small Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">15<span class="glyphicon glyphicon-heart " id="15"></span></button><div class="btn btn-xs">Small Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">16<span class="glyphicon glyphicon-heart " id="16"></span></button><div class="btn btn-xs">Small Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs xl-block" aria-label="Left Align">17<span class="glyphicon glyphicon-heart " id="17"></span></button><div class="btn btn-xs">XL Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs l-block" aria-label="Left Align">18<span class="glyphicon glyphicon-heart " id="18"></span></button><div class="btn btn-xs">L Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs m-block" aria-label="Left Align">19<span class="glyphicon glyphicon-heart " id="19"></span></button><div class="btn btn-xs">M Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">20<span class="glyphicon glyphicon-heart " id="20"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">21<span class="glyphicon glyphicon-heart " id="21"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">22<span class="glyphicon glyphicon-heart " id="22"></span></button><div class="btn btn-xs">Daf</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">23<span class="glyphicon glyphicon-heart " id="23"></span></button><div class="btn btn-xs">Daf</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs s-block" aria-label="Left Align">24<span class="glyphicon glyphicon-heart " id="24"></span></button><div class="btn btn-xs">S Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs xs-block" aria-label="Left Align">25<span class="glyphicon glyphicon-heart " id="25"></span></button><div class="btn btn-xs">XS Block</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs bell" aria-label="Left Align">26<span class="glyphicon glyphicon-heart " id="26"></span></button><div class="btn btn-xs">Bell</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">27<span class="glyphicon glyphicon-heart " id="27"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+            <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">28<span class="glyphicon glyphicon-heart " id="28"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+          </div>
+        <!-- <img class="roshanai_img" src="./assets/roshanai_left.png"> -->
+        <!-- <img class="roshanai_img" src="./assets/roshanai_right.png"> -->
+        <div class="solenoid-icons">
+          <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">29<span class="glyphicon glyphicon-heart " id="29"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">30<span class="glyphicon glyphicon-heart " id="30"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bell" aria-label="Left Align">31<span class="glyphicon glyphicon-heart " id="31"></span></button><div class="btn btn-xs">Bell</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs xs-block" aria-label="Left Align">32<span class="glyphicon glyphicon-heart " id="32"></span></button><div class="btn btn-xs">XS Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs s-block" aria-label="Left Align">33<span class="glyphicon glyphicon-heart " id="33"></span></button><div class="btn btn-xs">S Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">34<span class="glyphicon glyphicon-heart " id="34"></span></button><div class="btn btn-xs">Daf</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">35<span class="glyphicon glyphicon-heart " id="35"></span></button><div class="btn btn-xs">Daf</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">36<span class="glyphicon glyphicon-heart " id="36"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">37<span class="glyphicon glyphicon-heart " id="37"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs m-block" aria-label="Left Align">38<span class="glyphicon glyphicon-heart " id="38"></span></button><div class="btn btn-xs">M Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs l-block" aria-label="Left Align">39<span class="glyphicon glyphicon-heart " id="39"></span></button><div class="btn btn-xs">L Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs xl-block" aria-label="Left Align">40<span class="glyphicon glyphicon-heart " id="40"></span></button><div class="btn btn-xs">XL Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">41<span class="glyphicon glyphicon-heart " id="41"></span></button><div class="btn btn-xs">Small Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">42<span class="glyphicon glyphicon-heart " id="42"></span></button><div class="btn btn-xs">Small Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">43<span class="glyphicon glyphicon-heart " id="43"></span></button><div class="btn btn-xs">Small Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs small-drum" aria-label="Left Align">44<span class="glyphicon glyphicon-heart " id="44"></span></button><div class="btn btn-xs">Small Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs xl-block" aria-label="Left Align">45<span class="glyphicon glyphicon-heart " id="45"></span></button><div class="btn btn-xs">XL Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs l-block" aria-label="Left Align">46<span class="glyphicon glyphicon-heart " id="46"></span></button><div class="btn btn-xs">L Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs m-block" aria-label="Left Align">47<span class="glyphicon glyphicon-heart " id="47"></span></button><div class="btn btn-xs">M Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">48<span class="glyphicon glyphicon-heart " id="48"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bass-drum" aria-label="Left Align">49<span class="glyphicon glyphicon-heart " id="49"></span></button><div class="btn btn-xs">Bass Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">50<span class="glyphicon glyphicon-heart " id="50"></span></button><div class="btn btn-xs">Daf</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs daf" aria-label="Left Align">51<span class="glyphicon glyphicon-heart " id="51"></span></button><div class="btn btn-xs">Daf</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs s-block" aria-label="Left Align">52<span class="glyphicon glyphicon-heart " id="52"></span></button><div class="btn btn-xs">S Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs xs-block" aria-label="Left Align">53<span class="glyphicon glyphicon-heart " id="53"></span></button><div class="btn btn-xs">XS Block</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs bell-block" aria-label="Left Align">54<span class="glyphicon glyphicon-heart " id="54"></span></button><div class="btn btn-xs">Bell</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">55<span class="glyphicon glyphicon-heart " id="55"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+          <div class="btn-group"><button type="button" class="btn btn-xs mid-drum" aria-label="Left Align">56<span class="glyphicon glyphicon-heart " id="56"></span></button><div class="btn btn-xs">Mid-Drum</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
