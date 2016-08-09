@@ -3,7 +3,7 @@ var fs = require('fs');
 
 module.exports = () => {
   let json;
-  let listeners = [];
+  var listeners = [];
   this.getMappings = () => {
     return new Promise((resolve, reject) => {
       fs.readFile('idMap.json', (err, data) => {
@@ -31,6 +31,7 @@ module.exports = () => {
       fs.writeFile('idMap.json', JSON.stringify(json), (err) => {
         if (err) reject(err);
         else resolve();
+        this.updateListeners()
       });
     })
   }
@@ -43,7 +44,7 @@ module.exports = () => {
   }
 
   this.updateListeners = () => {
-    for (var listener in listeners) {
+    for (var listener in this.listeners) {
       console.log(listeners[listener]); // TODO: Always prints undefined? Why is that?
       listener.mappingsUpdated(json);
     }
