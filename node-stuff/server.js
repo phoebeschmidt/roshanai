@@ -17,3 +17,9 @@ idMapperService.addListener(midiSerialService);
 app.listen(3000, function () {
     console.log("Listening on port 3000");
 });
+
+// Terminate process
+process.on('SIGINT', function() {
+    midiSerialService.shutdown();
+    process.exit();
+});

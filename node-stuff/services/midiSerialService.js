@@ -48,7 +48,11 @@ module.exports = (solenoidToRelayMap)=> {
   var output = new midi.output();
   var portCount = input.getPortCount();
   for (var i = 0; i < portCount; i++){
-    console.log("input device " + i + ":" + input.getPortName(i));
+    console.log("Input device " + i + ":" + input.getPortName(i));
+  }
+  portCount = output.getPortCount();
+  for (var i = 0; i < portCount; i++){
+    console.log("Output device " + i + ":" + output.getPortName(i));
   }
   input.on('message', function(deltaTime, message) {
     console.log('m:' + message + ' d:' + deltaTime);
@@ -98,17 +102,14 @@ module.exports = (solenoidToRelayMap)=> {
     return 1;
   }
 
-  // Terminate process
-  process.on('SIGINT', function() {
-      console.log("Caught interrupt signal");
-
-      input.closePort();
-      output.closePort();
-      process.exit();
-  });
-
   this.mappingsUpdated = (newMap) => {
     map = newMap;
+  }
+
+  this.shutdown = () => {
+    console.log("MidiSerialService shutdown");
+    input.closePort();
+    output.closePort();
   }
 
   return this;
