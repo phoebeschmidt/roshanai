@@ -9,6 +9,11 @@ var idMapperService = require('./services/idMapperService.js')();
 
 var routes = require('./routes/router.js')(app, idMapperService);
 
+var midiSerialService = require("./services/midiSerialService.js");
+idMapperService.getMappings().then(
+  (data) => { midiSerialService(data) },
+  (err) => { process.exit(err); }
+)
 app.listen(3000, function () {
     console.log("Listening on port 3000");
 });
