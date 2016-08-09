@@ -5,8 +5,9 @@ var prompt = require("prompt");
 
 module.exports = (solenoidToRelayMap)=> {
   //Configure serial device
+  var map = solenoidToRelayMap;
   var ser;
-  FAKE_SERIAL = false;
+  FAKE_SERIAL = true;
   if (FAKE_SERIAL) {
     ser = {
       write : function(string, callback) {
@@ -105,4 +106,10 @@ module.exports = (solenoidToRelayMap)=> {
       output.closePort();
       process.exit();
   });
+
+  this.mappingsUpdated = (newMap) => {
+    map = newMap;
+  }
+
+  return this;
 }

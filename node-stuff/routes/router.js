@@ -23,6 +23,7 @@ var router = function(app, idMapperService) {
       result.then(
         () => {
           res.sendStatus(200)
+          idMapperService.updateListeners();
         },
         (err) => {
           console.log("Error:", err);

@@ -3,7 +3,7 @@ var fs = require('fs');
 
 module.exports = () => {
   let json;
-
+  let listeners = [];
   this.getMappings = () => {
     return new Promise((resolve, reject) => {
       fs.readFile('idMap.json', (err, data) => {
@@ -35,5 +35,25 @@ module.exports = () => {
     })
   }
 
+  this.addListener = (listener) => {
+    console.log("Adding listener: " + listener); // TODO: Always prints undefined? Why is that?
+    if (listeners.indexOf(listener) < 0) {
+      listeners.push(listener);
+    }
+  }
+
+  this.updateListeners = () => {
+    for (var listener in listeners) {
+      console.log(listeners[listener]); // TODO: Always prints undefined? Why is that?
+      listener.mappingsUpdated(json);
+    }
+  }
+
+  this.removeListener = (listener) => {
+    let idx = listeners.indexOf(listener);
+    if (idx >= 0) {
+      listeners.splice(idx, 1);
+    }
+  }
   return this;
 }
