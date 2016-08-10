@@ -7,7 +7,7 @@ module.exports = (solenoidToRelayMap)=> {
   //Configure serial device
   var map = solenoidToRelayMap;
   var ser;
-  FAKE_SERIAL = true;
+  FAKE_SERIAL = false;
   if (FAKE_SERIAL) {
     ser = {
       write : function(string, callback) {
@@ -36,8 +36,8 @@ module.exports = (solenoidToRelayMap)=> {
   var sendSignal = function(note, onOff) {
     var relay = (note % 8) + 1;
     var board = Math.floor(note/8);
-    if (solenoidToRelayMap)
-    var command = "!" + solenoidToRelayMap[note] + onOff + ".";
+    // if (solenoidToRelayMap)
+    var command = "!" + solenoidToRelayMap[note + 1] + onOff + ".";
     ser.write(command, function(err) {
       if (err) console.log('Error: ', err);
     });
