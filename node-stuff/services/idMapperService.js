@@ -30,24 +30,25 @@ module.exports = () => {
     return new Promise((resolve, reject) => {
       fs.writeFile('idMap.json', JSON.stringify(json), (err) => {
         if (err) reject(err);
-        else resolve();
-        this.updateListeners()
+        else {
+          this.updateListeners();
+          resolve();
+        }
       });
     })
   }
 
   this.addListener = (listener) => {
-    console.log("Adding listener: " + listener); // TODO: Always prints undefined? Why is that?
+    console.log("Adding listener: " + listener);
     if (listeners.indexOf(listener) < 0) {
       listeners.push(listener);
     }
   }
 
   this.updateListeners = () => {
-    for (var listener in this.listeners) {
-      console.log(listeners[listener]); // TODO: Always prints undefined? Why is that?
+    listeners.forEach((listener) => {
       listener.mappingsUpdated(json);
-    }
+    });
   }
 
   this.removeListener = (listener) => {
