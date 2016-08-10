@@ -103,6 +103,7 @@ module.exports = (solenoidToRelayMap)=> {
   }
 
   this.mappingsUpdated = (newMap) => {
+    console.log("mappings updated");
     map = newMap;
   }
 

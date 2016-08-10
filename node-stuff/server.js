@@ -13,9 +13,9 @@ idMapperService.getMappings().then(
   (data) => {
     midiSerialService = require("./services/midiSerialService.js")(data);
     idMapperService.addListener(midiSerialService);
-  },
+   },
   (err) => { process.exit(err); }
-)
+);
 app.listen(3000, function () {
     console.log("Listening on port 3000");
 });

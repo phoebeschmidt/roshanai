@@ -33,13 +33,13 @@ module.exports = () => {
         else {
           this.updateListeners()
           resolve();
-      }
+        }
       });
     })
   }
 
   this.addListener = (listener) => {
-    console.log("Adding listener: " + listener); // TODO: Always prints undefined? Why is that?
+    console.log("Adding listener: " + listener);
     if (listeners.indexOf(listener) < 0) {
       listeners.push(listener);
     }
@@ -47,9 +47,8 @@ module.exports = () => {
 
   this.updateListeners = () => {
     listeners.forEach((listener) => {
-      console.log(listener); // TODO: Always prints undefined? Why is that?
       listener.mappingsUpdated(json);
-    })
+    });
   }
 
   this.removeListener = (listener) => {
