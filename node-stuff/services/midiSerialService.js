@@ -5,8 +5,8 @@ var FAKE_SERIAL = require("../config.js").FAKE_SERIAL;
 
 module.exports = (solenoidToRelayMap, programMap)=> {
   //Configure serial device
-  var program = 0;
-  var midiToSolenoidMap = programMap[program];
+  this.program = 104;
+  midiToSolenoidMap = programMap[this.program];
   var ser;
   // FAKE_SERIAL = tr;
   if (FAKE_SERIAL) {
@@ -53,7 +53,7 @@ module.exports = (solenoidToRelayMap, programMap)=> {
       switch (midiToSolenoidMap[note].type) {
         case "sequence":
           midiToSolenoidMap[note].solenoids.forEach(function(s, i) {
-            setTimeout(sendSignal, 200*i, s, onOff);
+            setTimeout(sendSignal, 100*i, s, onOff);
           })
           break;
         case "simultaneous":
@@ -72,9 +72,15 @@ module.exports = (solenoidToRelayMap, programMap)=> {
   for (var i = 0; i < portCount; i++){
     console.log("Input device " + i + ":" + input.getPortName(i));
   }
+
   portCount = output.getPortCount();
   for (var i = 0; i < portCount; i++){
     console.log("Output device " + i + ":" + output.getPortName(i));
+  }
+
+  var changeProgram = function(programNumber) {
+    this.program = programNumber;
+    midiToSolenoidMap = programMap[this.program];
   }
 
   this.handleMidiMessage = function(deltaTime, message) {
@@ -92,9 +98,9 @@ module.exports = (solenoidToRelayMap, programMap)=> {
     } else if (status == 0x80) {
       var note = message[1];
       buildCommand(note, 0);
-    } else if (status == 0xc0) { // Program change
+    } else if (status == 0xB0) { //TODO Program change is actually 0xC0. 0xB0 are the side launchpad buttons-- for testing
       var program = message[1];
-      change_program(program);
+      changeProgram(program);
     }
   }
   input.on('message', this.handleMidiMessage);

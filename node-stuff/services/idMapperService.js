@@ -39,7 +39,6 @@ module.exports = () => {
   }
 
   this.addListener = (listener) => {
-    console.log("Adding listener: " + listener);
     if (listeners.indexOf(listener) < 0) {
       listeners.push(listener);
     }
