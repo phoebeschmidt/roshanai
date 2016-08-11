@@ -31,7 +31,7 @@ module.exports = () => {
       fs.writeFile('idMap.json', JSON.stringify(json), (err) => {
         if (err) reject(err);
         else {
-          this.updateListeners();
+          this.updateListeners()
           resolve();
         }
       });
