@@ -3,7 +3,7 @@ var fs = require('fs');
 
 module.exports = () => {
   let json;
-
+  var listeners = [];
   this.getMappings = () => {
     return new Promise((resolve, reject) => {
       fs.readFile('idMap.json', (err, data) => {
@@ -30,10 +30,31 @@ module.exports = () => {
     return new Promise((resolve, reject) => {
       fs.writeFile('idMap.json', JSON.stringify(json), (err) => {
         if (err) reject(err);
-        else resolve();
+        else {
+          this.updateListeners()
+          resolve();
+        }
       });
     })
   }
 
+  this.addListener = (listener) => {
+    if (listeners.indexOf(listener) < 0) {
+      listeners.push(listener);
+    }
+  }
+
+  this.updateListeners = () => {
+    listeners.forEach((listener) => {
+      listener.mappingsUpdated(json);
+    });
+  }
+
+  this.removeListener = (listener) => {
+    let idx = listeners.indexOf(listener);
+    if (idx >= 0) {
+      listeners.splice(idx, 1);
+    }
+  }
   return this;
 }

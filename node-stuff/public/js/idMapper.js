@@ -1,4 +1,4 @@
-var relayAddressRegExp = new RegExp("^0[1-8]{2}$");
+var relayAddressRegExp = new RegExp("^0[0-8][1-8]$");
 var serverAddress = "http://localhost:3000/solenoids/"
 
 $(document).ready(function() {

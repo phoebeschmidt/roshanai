@@ -1,0 +1,27 @@
+{"104":
+  {
+    "1": {
+      "type": "simultaneous",
+      "solenoids": ["1", "2"]
+    },
+    "2": {
+      "type": "simultaneous",
+      "solenoids": ["3"]
+    },
+    "3" : {
+      "type": "simultaneous",
+      "solenoids": ["4"]
+    },
+    "4" : {
+      "type": "sequence",
+      "solenoids": ["5", "6", "7", "8"]
+    }
+  },
+  "105":
+    {
+      "0" : {
+        "type": "sequence",
+        "solenoids": ["1", "1", "1"]
+      }
+    }
+}
