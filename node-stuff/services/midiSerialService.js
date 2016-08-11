@@ -1,13 +1,14 @@
 var midi = require("midi");
 var SerialPort = require("serialport");
 var prompt = require("prompt");
+var FAKE_SERIAL = require("../config.js").FAKE_SERIAL;
 
-
-module.exports = (solenoidToRelayMap)=> {
+module.exports = (solenoidToRelayMap, programMap)=> {
   //Configure serial device
-  var map = solenoidToRelayMap;
+  var program = 0;
+  var midiToSolenoidMap = programMap[program];
   var ser;
-  FAKE_SERIAL = false;
+  // FAKE_SERIAL = tr;
   if (FAKE_SERIAL) {
     ser = {
       write : function(string, callback) {
@@ -22,25 +23,46 @@ module.exports = (solenoidToRelayMap)=> {
     var serialProps = {
       baudRate: 19200
     };
-    var ser = new SerialPort("/dev/tty.usbserial", serialProps, function (err) {
+    ser = new SerialPort("/dev/tty.usbserial", serialProps, function (err) {
       if (err) {
         console.log('Error: ', err.message);
         process.exit()
       }
     });
   }
+
   function zeroPad(num, places) {
     var zero = places - num.toString().length + 1;
     return Array(+(zero > 0 && zero)).join("0") + num;
   }
-  var sendSignal = function(note, onOff) {
-    var relay = (note % 8) + 1;
-    var board = Math.floor(note/8);
-    // if (solenoidToRelayMap)
-    var command = "!" + solenoidToRelayMap[note + 1] + onOff + ".";
-    ser.write(command, function(err) {
-      if (err) console.log('Error: ', err);
-    });
+
+  var sendSignal = function(solenoidId, onOff) {
+    var relayAddress = solenoidToRelayMap[solenoidId];
+    if (relayAddress) {
+      var command = "!" + relayAddress + onOff + ".";
+      ser.write(command, function(err) {
+        if (err) console.log('Error: ', err);
+      });
+    }
+  }
+
+  var buildCommand = function(note, onOff) {
+    if (!midiToSolenoidMap[note]) {
+      return;
+    } else {
+      switch (midiToSolenoidMap[note].type) {
+        case "sequence":
+          midiToSolenoidMap[note].solenoids.forEach(function(s, i) {
+            setTimeout(sendSignal, 200*i, s, onOff);
+          })
+          break;
+        case "simultaneous":
+          midiToSolenoidMap[note].solenoids.forEach(function(s) {
+            sendSignal(s, onOff);
+          })
+          break;
+      }
+    }
   }
 
   // Configure Midi Input
@@ -54,7 +76,8 @@ module.exports = (solenoidToRelayMap)=> {
   for (var i = 0; i < portCount; i++){
     console.log("Output device " + i + ":" + output.getPortName(i));
   }
-  input.on('message', function(deltaTime, message) {
+
+  this.handleMidiMessage = function(deltaTime, message) {
     console.log('m:' + message + ' d:' + deltaTime);
     output.sendMessage(message);
     var status = message[0] & 0xf0;
@@ -62,18 +85,19 @@ module.exports = (solenoidToRelayMap)=> {
       var note = message[1];
       var velocity = message[2];
       if (velocity == 0) {
-        sendSignal(note, 0);// note on with velocity 0 is a note off
+        buildCommand(note, 0);// note on with velocity 0 is a note off
       } else {
-        sendSignal(note, 1); // note on
+        buildCommand(note, 1); // note on
       }
     } else if (status == 0x80) {
       var note = message[1];
-      sendSignal(note, 0);
+      buildCommand(note, 0);
     } else if (status == 0xc0) { // Program change
       var program = message[1];
       change_program(program);
     }
-  });
+  }
+  input.on('message', this.handleMidiMessage);
 
   // Use prompt to define input device
   prompt.start();
